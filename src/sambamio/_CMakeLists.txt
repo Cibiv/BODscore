@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 2.8)
+project(sambamio)
+
+TARGET_LINK_LIBRARIES(NGM bamtools)
+
+add_executable(compmotives	BasisClass.cpp
+				comMotives.cpp
+				Motiv.cpp
+				sambamio/Alignment.cpp	
+				sambamio/BamParser.cpp
+				sambamio/FastaParser.cpp
+				sambamio/Parser.cpp
+				sambamio/SamParser.cpp
+	      )
+
+
