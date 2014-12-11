@@ -21,11 +21,6 @@ There are 2 options implemented:
 
 
 
-Sample files:
-------------
-The sample files for running the program are in the folder 'examples'.
-
-
 Additional information:
 ------------
 A R script is provided (src/rscript.R) to produce the plots of the coverage
