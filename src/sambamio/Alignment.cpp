@@ -91,6 +91,24 @@ void Alignment::computeAlignment() {
 
 }
 
+void Alignment::processAlignment(string &ref){ // by dima
+
+int32_t al_pos = this->getPosition();
+string ref_al;
+
+if (al_pos + getRefLength() >= ref.size()) {
+           ref_al = ref.substr((size_t) al_pos,  (int32_t) ref.size() - al_pos);
+
+            while (ref_al.size() < this->getRefLength()) { ref_al += 'N'; }
+            } else {
+                ref_al = ref.substr((size_t) al_pos, this->getRefLength());
+            }
+// set stuff
+this->setRef(ref_al);
+this->computeAlignment();
+}
+
+
 int32_t Alignment::getPosition() {
 	return al->Position;
 }

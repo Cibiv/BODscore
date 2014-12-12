@@ -27,10 +27,13 @@ int main(int argc, char *argv[]) {
 		switch(atoi(argv[1])){
 		case 1:
 			tool=new Ident_hist();
-
+			tool->parse_cmd_line(argc-1,&argv[1]);
+			tool->compute();
 			break;
 		case 2:
 			tool=new ParseSNP();
+			tool->parse_cmd_line(argc-1,&argv[1]);
+			tool->compute();
 			break;
 		default:
 			cerr<<"No available option"<<endl;
@@ -38,8 +41,6 @@ int main(int argc, char *argv[]) {
 		}
 
 
-		tool->parse_cmd_line(argc-1,&argv[1]);
-		tool->compute();
 
 		delete tool;
 		return 0;

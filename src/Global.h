@@ -11,7 +11,7 @@
 #include "string.h"
 #include "vector"
 #include <iostream>
-
+#include <stdio.h>
 
 #include "tclap/CmdLine.h"
 #include "sambamio/BamParser.h"
@@ -20,12 +20,12 @@
 #include "sambamio/SamParser.h"
 #include "sambamio/Alignment.h"
 
-
+#include "Coverage.h"
 #include "BasisClass.h"
 using namespace TCLAP;
 using namespace std;
-int const step=5;
-int const MAX_NUM_ALIGNMENTS = 5000000;
+
+int const MAX_NUM_ALIGNMENTS = 1000000 ;// 5000000;
 
 //string convertInt(int number) {
 //	if (number == 0)

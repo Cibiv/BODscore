@@ -42,7 +42,7 @@ public:
 	}
 	Alignment * parseRead(uint16_t mappingQv);
 	void parseReadFast(uint16_t mappingQv,Alignment *& align);
-
+    bool SetRegion(const int & RefId, const int & leftPos, const int & rightPos);
 
 };
 #endif /* SAMPARSER_H_ */

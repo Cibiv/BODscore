@@ -1,0 +1,9 @@
+bin/**/*
+build/**/*
+Debug/**/*
+todo.md
+**/*.h~
+**/*.cpp~
+src/sambamio/**/*.svn
+!src/sambamio/*.h
+!src/sambamio/*.cpp

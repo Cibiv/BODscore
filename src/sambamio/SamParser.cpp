@@ -180,3 +180,7 @@ vector<CigarOp> SamParser::convertCigar(string cigar) {
 	return tmp;
 }
 
+bool SamParser::SetRegion(const int & RefId, const int & leftPos, const int & rightPos){
+    return false;
+}
+

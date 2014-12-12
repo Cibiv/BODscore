@@ -16,6 +16,16 @@ BamParser::BamParser(string file){
 		exit(0);
 	}
 
+   tmps[0] = file + ".bai";
+   if(!reader.OpenIndexes(tmps)){
+        cerr<<"BAM Parser: could not open index for : "<<file<<endl;
+    //    exit(0);
+    }
+
+}
+
+bool BamParser::SetRegion(const int & RefId, const int & leftPos, const int & rightPos){
+    return reader.SetRegion(RefId, leftPos, RefId, rightPos );
 }
 
 Alignment* BamParser::parseRead(uint16_t mappingQv){
