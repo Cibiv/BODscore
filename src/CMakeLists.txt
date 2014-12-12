@@ -3,9 +3,10 @@ cmake_minimum_required(VERSION 2.8)
 include_directories (sambamio)
 
 add_executable(vshape 	BasisClass.cpp
+                        Coverage.cpp
 						Ident_hist.cpp
 						ParseSNP.cpp
-						VShape.cpp
+						nvshape.cpp     #VShape.cpp
 						sambamio/Alignment.cpp
 						sambamio/BamParser.cpp
 						sambamio/FastaParser.cpp

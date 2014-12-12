@@ -41,6 +41,7 @@ public:
 	void setAlignment(BamAlignment * al);
 	void setRef(string sequence);
 	void computeAlignment();
+    void processAlignment(string &ref);
 
 	pair<string,string> getSequence();
 	int32_t getPosition();

@@ -33,7 +33,8 @@ public:
 	~BamParser(){
 		reader.Close();
 	}
-	Alignment * parseRead(uint16_t mappingQv);
+    bool SetRegion(const int & RefId, const int & leftPos, const int & rightPos);
+    Alignment * parseRead(uint16_t mappingQv);
 	void parseReadFast(uint16_t mappingQv,Alignment*& aln);
 	string get_header();
 	RefVector get_refInfo();

@@ -9,24 +9,33 @@ cd ../../bin/vshape-*
 ./vshape
 
 
-Options:
+Functionality:
 ----------
-There are 2 options implemented:
+Reevaluates the quality of called SNPs (provided in VCF format). Returns:
 
-1: Summarize identity
-	Computes the identity distribution along mapped reads.
-		
-2: Reevaluates the called SNPs
-	Uses the described geometric method to compute the reliability of a SNP
+- the reliability of a SNP (BOD score) based on [the described geometric method](http://dx.doi.org/10.1016%2Fj.ygeno.2012.12.001)
 
+- per-nucleotide coverage of the reference around SNPs provided 
+(+/- floor(1.5 * read length) around the SNP, tab-separated file, 
+with blocks delimited by "\t|\t" ):
+
+ - generally (100% and 90% identity)
+ - for reads covering the SNP locus (100% and 90% identity)
+ - location of centres of the reads covering the SNP locus
+
+
+Sample files:
+------------
+The sample files for running the program are in the folder 'examples'.
 
 
 Additional information:
 ------------
-A R script is provided (src/rscript.R) to produce the plots of the coverage
-
+A Python script (plotCoverage.py) is provided to produce the plots of the coverage.
+An earlier R script (src/rscript.R) is outdated and is not compatible with the current version.
 
 Contact:
-------------
-If you have any questions/concerns please drop me an email:
+--------
+If you have any questions/concerns please drop an email to:
 fritz.sedlazeck@univie.ac.at
+d.lituiev@gmail.com
