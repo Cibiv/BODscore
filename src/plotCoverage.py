@@ -32,7 +32,10 @@ rl = args.rangel
 num_lines = int(subprocess.check_output(['wc', '-l', args.inFile]).decode().split(' ')[0])
 
 print("lines: %u" % num_lines)
-    
+
+import shutil
+shutil.rmtree(args.out_dir)
+
 os.mkdir(args.out_dir)
 
 def blockToNpArray(a):
@@ -50,25 +53,30 @@ class CoverageSummary():
         self.parseArrays(lineList)
         self.x = np.arange(- rl, rl ).astype(int)
         
-        self.expCentreMut = np.sum(self.x * self.alnmCentresMut) / np.sum(self.alnmCentresMut)
-        self.expCentre = np.sum(self.x * self.alnmCentres) / np.sum(self.alnmCentres)
-        self.diffQ = -np.subtract(self.highQ, self.lowQ)
+        self.expCentreMut = np.sum(self.x * self.snp_alnCentres) / np.sum(self.snp_alnCentres)
+        self.expCentre = np.sum(self.x * self.tot_alnCentres) / np.sum(self.tot_alnCentres)
         
-        self.snp_ratio = self.diffQ[rl]/self.lowQ[rl]
+        
+        self.snp_ratio = (self.covLoF[rl] + self.covLoR[rl])/ \
+        (self.covLoF[rl]+ self.covLoR[rl] + self.covHiF[rl]+ self.covHiR[rl])
         return None    
         
     def parseArrays(self,lineList):
-        self.highQ = blockToNpArray(lineList[1])
-        self.lowQ = blockToNpArray(lineList[2])
-        self.alnmCentres = blockToNpArray(lineList[3])
-        self.alnmCentresMut = blockToNpArray(lineList[4])
-        self.locHighQ = blockToNpArray(lineList[5])
-        self.locLowQ = blockToNpArray(lineList[6])
+        self.covHiF = blockToNpArray(lineList[1])
+        self.covHiR = blockToNpArray(lineList[2])
+        self.covLoF = blockToNpArray(lineList[3])
+        self.covLoR = blockToNpArray(lineList[4])
+        self.tot_alnCentres = blockToNpArray(lineList[5])
+        self.snp_alnCentres = blockToNpArray(lineList[6])
+        self.snp_covHiF = blockToNpArray(lineList[7])
+        self.snp_covHiR = blockToNpArray(lineList[8])
+        self.snp_covLoF = blockToNpArray(lineList[9])
+        self.snp_covLoR = blockToNpArray(lineList[10])
         
-        full_range = len(self.locLowQ)
+        full_range = len(self.snp_covLoF)
         global rl        
         print(rl)
-        assert ( full_range == len(self.highQ) )
+        assert ( full_range == len(self.covHiF) )
         rl = int(np.fix(full_range/2))
         
     
@@ -80,26 +88,32 @@ class CoverageSummary():
         # plt.title('ratio: %3.3f, centre mut: %u, centre all %u, score = %3.3f,' %(self.snp_ratio, self.expCentreMut, self.expCentre, self.score) )
   
         ax1 = plt.subplot(gs1[:2, :]) # plt.subplot(211)
-        plt.plot(self.x, self.lowQ,  'b.-')
-        plt.plot(self.x, self.highQ, 'g.-')
+        plt.plot(self.x, self.covHiF + self.covLoF,  'b.-')
+        plt.plot(self.x, -(self.covHiR + self.covLoR),  'b.-')
+        plt.plot(self.x, self.covHiF, 'g.-')
+        plt.plot(self.x, -self.covHiR, 'g.-')
         plt.xlim([-rl, rl]) 
         plt.xlabel('position relative to the SNP, ratio=%3f' % self.snp_ratio)
         plt.ylabel('coverage')
         # plt.title('A tale of 2 subplots')
-        plt.plot(self.x, self.diffQ, 'r.-')
+        plt.plot(self.x, self.covLoF, 'r.-')
+        plt.plot(self.x, -self.covLoR, 'r.-')
         
         ax2 = plt.subplot(gs1[2:4, :]) # plt.subplot(211)
-        plt.plot(self.x, self.locLowQ,  'b.-')
-        plt.plot(self.x, self.locHighQ, 'g.-')
+        plt.plot(self.x, self.snp_covLoF + self.snp_covHiF,  'b.-')
+        plt.plot(self.x, - (self.snp_covLoR + self.snp_covHiR),  'b.-')
+        plt.plot(self.x, self.snp_covHiF, 'g.-')
+        plt.plot(self.x, - self.snp_covHiR, 'g.-')
         plt.xlim([-rl, rl]) 
         plt.xlabel('position relative to the SNP, score = %3f' % self.score )
         plt.ylabel('local coverage')
-        plt.plot(self.x, self.locLowQ - self.locHighQ, 'r.-')        
+        plt.plot(self.x, self.snp_covLoF , 'r.-')
+        plt.plot(self.x, -self.snp_covLoR , 'r.-')        
         
         ax3 = plt.subplot(gs1[-1, :]) # plt.subplot(212)
-        markerline, stemlines, baseline = plt.stem(self.x, self.alnmCentres, 'g.-')
+        markerline, stemlines, baseline = plt.stem(self.x, self.tot_alnCentres, 'g.-')
         plt.setp(markerline, 'markerfacecolor', 'g')
-        markerline, stemlines, baseline = plt.stem(self.x, self.alnmCentresMut, 'r.-')
+        markerline, stemlines, baseline = plt.stem(self.x, self.snp_alnCentres, 'r.-')
         plt.setp(markerline, 'markerfacecolor', 'r')        
         plt.xlim([-rl, rl]) 
         plt.xlabel('position relative to the SNP, \nratio: %3.3f, centre mut: %u, centre all %u, score = %3.3f,' %(self.snp_ratio, self.expCentreMut, self.expCentre, self.score) )
@@ -114,7 +128,7 @@ with open(args.inFile) as f:
     for line in f:
         cs = CoverageSummary( line )
         
-        print("len(y) %u" % len(cs.alnmCentres) )
+        print("len(y) %u" % len(cs.tot_alnCentres) )
         print("plotting chr %u, pos %u" % (cs.chromosome, cs.pos) )
         print("centre of mut reads: %3f" % (cs.expCentreMut) )
         print("centre of all reads: %3f" % (cs.expCentre) )
