@@ -22,8 +22,8 @@ float Coverage::estimate(int & read_length) {
         int cov_hi[2*range];
         int cov_90[2*range];
         for (size_t ii=0; ii< 2*range; ii++){
-            cov_hi[ii] = tot_cov[HI][RV][ii] + cov[HI][FW][ii];
-            cov_90[ii] = cov_hi + cov[LO][RV][ii] + cov[LO][FW][ii];
+            cov_hi[ii] = tot_cov[HI][RV][ii] + tot_cov[HI][FW][ii];
+            cov_90[ii] = cov_hi[ii] + tot_cov[LO][RV][ii] + tot_cov[LO][FW][ii];
             }
 
         int max_right = 0;
@@ -79,59 +79,37 @@ void Coverage::compute_cov(Alignment * aln) {
 //    clog<<aln->getSequence().second<<endl;
     int const al_pos = aln->getPosition() - start_pos;
     //   =========================================================================
-    int * curr_tot_cov;
-    int * curr_snp_cov;
-    int hi_lo = (int) (aln->getIdentity() == 1);
-    int fw_rv = (int) (aln->IsReverseStrand());
-    if (aln->IsReverseStrand()){ 
-        if (aln->getIdentity() == 1){  
-            curr_tot_cov = cov_hi_r; 
-            curr_snp_cov = snp_cov_hi_r; 
-            } else {
-            curr_tot_cov = cov_lo_r;
-            curr_snp_cov = snp_cov_lo_r;
-            }
-        } else {
-        if (aln->getIdentity() == 1){  
-            curr_tot_cov = cov_hi_f; 
-            curr_snp_cov = snp_cov_hi_f; 
-            } else {
-            curr_tot_cov = cov_lo_f;
-            curr_snp_cov = snp_cov_lo_f;
-            }
-        }
     int pos_snp_in_aln = pos - aln->getPosition();
-    bool within = pos_snp_in_aln > 0 && pos_snp_in_aln <  aln->getSequence().first.size(); 
-    within = within && aln->getIdentity( pos_snp_in_aln );
 
+    int fw_rv = (int) (aln->IsReverseStrand());
+    int hi_lo = (int) (aln->getIdentity() == 1);
+    int snp_hi_lo = (int) ( (aln->getIdentity() == 1) && aln->getIdentity( pos_snp_in_aln ) );
+
+    bool within = pos_snp_in_aln > 0 && pos_snp_in_aln <  aln->getSequence().first.size(); 
+   
     size_t end_point = min(aln->getSequence().first.size(), 2*range - al_pos);
     size_t offset = 0;
     int jj = al_pos + max(ZERO, -al_pos);
 
     if (aln->getIdentity() == 1) {
         for (size_t i = max(ZERO, -al_pos); i < end_point ; i++) {
-            curr_tot_cov[jj]++;
             tot_cov[hi_lo][fw_rv][jj]++;
             if (within){ 
-                curr_snp_cov[jj]++; 
-                snp_cov[hi_lo][fw_rv][jj]++;
+                snp_cov[snp_hi_lo][fw_rv][jj]++;
                 }
             jj++;
             if (i > 2*range){ break; }
         }
     } else {
         for (size_t i = max(ZERO, -al_pos); i < end_point ; i++) {
-             curr_tot_cov[jj]++; 
              tot_cov[hi_lo][fw_rv][jj]++;
-             if (within){ 
-                 curr_snp_cov[jj]++;
-                 snp_cov[hi_lo][fw_rv][jj]++;
+             if ( within ){ 
+                 snp_cov[snp_hi_lo][fw_rv][jj]++;
                  }
              if (aln->getSequence().second[i] != '-') {
                  jj++;
                  if (jj > 2*range){ break; }
              }
-             // if ( cov_diff + al_pos == aln_centres ) { cerr << " collision! al_pos: " << al_pos << endl;}
         }
     }
 
@@ -139,7 +117,7 @@ void Coverage::compute_cov(Alignment * aln) {
     // ==== IF snp is within the alignment
     if ( within ){
         int centre_al =  range - pos_snp_in_aln + aln->getSequence().first.size() / 2  ;
-        aln_centres[hi_lo][fw_rv][centre_al]++;
+        aln_centres[snp_hi_lo][fw_rv][centre_al]++; 
     }
 
 };
@@ -150,24 +128,22 @@ void Coverage::print_cov(const int & cc, FILE *file){
                         fprintf(file, "%u\t", cc  + 1 );
                         fprintf(file, "%u\t", pos + 1 );
                         fprintf(file, "%f\t", score);
-
-                        print_block(file, tot_cov[HI][FW] );
-                        print_block(file, cov_hi_r);
-                        print_block(file, cov_lo_f);
-                        print_block(file, cov_lo_r);
                         
-                        print_block(file, aln_centres[HI][RV]);
-                        print_block(file, aln_centres[HI][FW]);
-                        print_block(file, aln_centres[LO][FW]);
-                        print_block(file, aln_centres[LO][RV]);
+                        print_subarrays( file, tot_cov );
                         
-                        print_block(file, snp_cov_hi_f);
-                        print_block(file, snp_cov_hi_r);
-                        print_block(file, snp_cov_lo_f);
-                        print_block(file, snp_cov_lo_r);
-
+                        print_subarrays( file, aln_centres);
+                        
+                        print_subarrays( file, snp_cov );
+                        
                         fprintf(file, "%c", '\n');
 }
+
+void Coverage::print_subarrays(FILE *file, int * const  p[2][2] ){
+         print_block(file, p[HI][FW]);
+         print_block(file, p[HI][RV]);
+         print_block(file, p[LO][FW]);
+         print_block(file, p[LO][RV]);
+     }
 
 void Coverage::print_block(FILE *file, const int * var ){
     fprintf(file, "|\t");
