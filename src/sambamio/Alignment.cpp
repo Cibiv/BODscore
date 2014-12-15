@@ -11,6 +11,10 @@ void Alignment::setRef(string sequence) {
 	alignment.second = sequence;
 }
 
+bool Alignment::IsReverseStrand(){
+  return al->IsReverseStrand();
+}
+
 void Alignment::initAlignment() {
 	//al = new BamAlignment();
 }
@@ -153,6 +157,7 @@ string Alignment::getName() {
 uint16_t Alignment::getMappingQual() {
 	return al->MapQuality;
 }
+
 float Alignment::getIdentity() {
 	if (is_computed) {
 		float match = 0;
@@ -164,6 +169,19 @@ float Alignment::getIdentity() {
 		return match / (float) alignment.first.size();
 	}
 	return -1;
+}
+
+bool Alignment::getIdentity(const int & pos) {
+	if (is_computed) {
+        if ( pos < alignment.first.size() ) {
+            if  (alignment.first[pos] == alignment.second[pos]) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+	}
+	return false; // must be exception!
 }
 
 int Alignment::getAlignmentFlag() {

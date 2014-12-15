@@ -151,8 +151,10 @@ void ParseSNP::parseVCF() {
     size_t old_id = 100000;
     ref = fasta->getChr(id);
 
+    clog << "allocating coverage";
     Coverage * cov;
     cov = new Coverage(range);
+    clog << " done" << endl;
 
     while (!vcfFile.eof()) {
         if (buffer[0] != '#') {
@@ -221,11 +223,10 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
     int MIN_QUALITY = 0;
     clog << ":" << cc << ":" << leftPos << "-" << rightPos ;
     // set the region of interest
-    // int loc_cc = (int) cc;
     if (!mapped_file->SetRegion( (int) cc, leftPos, rightPos)){
     cerr << "cannot jump to position " << cov->pos << " on chr " << cc << endl;
     }
-//    clog << "-";
+    
     Alignment * tmp_aln = mapped_file->parseRead(MIN_QUALITY);
     clog << endl;
     vector<Alignment *> al_vect;
@@ -239,40 +240,16 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
                 tmp_aln = mapped_file->parseRead(MIN_QUALITY);
     }
     for (size_t aa = 0; aa < al_vect.size(); aa++ )    {
-       //  clog << "\r" << aa << "   <" ; 
         al_vect[aa]->processAlignment(ref); // a huge chunk has been factored out to the `processAlignment` method
         if (al_vect[aa]->getIdentity() >= 0.90) {
              cov->compute_cov(al_vect[aa]); 
         // } else { clog << " low identity! " ;
         }
     }
-    
-//    clog << ",  " << al_vect.size() << " alignments   " << endl;
     // al_vect.clear();
 }
+    
 
-/*
-void ParseSNP::print_cov( const  Coverage *p, const int & cc, FILE *file){
-                        fprintf(file, "%c", p->pos );
-                        fprintf(file, "%c", '\t');
-                        fprintf(file, "%f", p->score);
-                        fprintf(file, "%c", '\t');
-                        for (size_t j = 2; j < (size_t) range * 2; j++) {
-                                fprintf(file, "%i", p->cov_100[j]);
-                                fprintf(file, "%c", '\t');
-                        }
-                        fprintf(file, "%c", '\n');
-                        fprintf(file, "%c", (p)->pos );
-                        fprintf(file, "%c", '\t');
-                        fprintf(file, "%i", -1);
-                        fprintf(file, "%c", '\t');
-                        for (size_t j = 2; j < (size_t) range * 2; j++) {
-                                fprintf(file, "%i", p->cov_90[j]);
-                                fprintf(file, "%c", '\t');
-                        }
-                        fprintf(file, "%c", '\n');
-}
-*/
 void ParseSNP::print() {
     cout << "printing:" << endl;
     FILE *file;
@@ -386,8 +363,8 @@ void ParseSNP::print() {
         }
      cout << "Printing finished" << endl;
     for (map<string, Coverage*>::iterator i = covs.begin(); i != covs.end(); i++) {
-        delete [] (*i).second->cov_100;
-        delete [] (*i).second->cov_90;
+//        delete [] (*i).second->cov_hi;
+//        delete [] (*i).second->cov_lo;
         delete (*i).second;
     }
 }

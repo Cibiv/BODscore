@@ -20,7 +20,7 @@ class Alignment {
 
 private:
 	BamAlignment * al;
-	pair<string,string> alignment;
+	pair<string, string> alignment;
 	bool is_computed;
 	int32_t orig_length;
 //	static int num;
@@ -55,11 +55,13 @@ public:
 	size_t getOrigLen();
 	BamAlignment * getAlignment();
 	float getIdentity();
+    bool getIdentity(const int& pos);
 	void initAlignment();
 	int getAlignmentFlag();
 	string getQueryBases();
 	string getQualities();
 	string getTagData();
+    bool IsReverseStrand();
 };
 
 
