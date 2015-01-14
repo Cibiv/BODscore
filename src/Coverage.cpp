@@ -138,12 +138,66 @@ void Coverage::print_cov(const int & cc, FILE *file){
                         fprintf(file, "%c", '\n');
 }
 
+void Coverage::print_cov_db(const int & cc, sqlite3pp::database & db){
+                        // clog << "printing ..." << endl;
+//                    cout << "REACHED 1!" << endl;
+                    char tot_cov_str[(range*2 + 1)*4];
+                    
+                    char sql[1024];
+                    sprintf (sql, "INSERT INTO coverage_%u "  \
+                         "(pos, score, %s ) VALUES (:pos, :score) ", \
+                          (int) cc+1, "tot_cov");
+
+                    sqlite3pp::command cmd( db, sql);
+                    cmd.bind(":pos", pos + 1 );
+                    cmd.bind(":score", score);
+                    clog << cmd.execute() << endl;
+
+
+//                    cout << "REACHED 2!" << endl;
+                   //      print_subarrays( file, tot_cov );
+                        
+                  //      print_subarrays( file, aln_centres);
+                        
+                  //      print_subarrays( file, snp_cov );
+                        
+                  //      fprintf(file, "%c", '\n');
+}
+/*
+std::string Coverage::col_names(const char * base){
+    char buf [(strlen(base) + 8)*4 ] ;
+    int n = 0;
+    n = n+ sprintf(buf+n,  "%s_hi_fw, ", base);
+    n = n+ sprintf(buf+n,  "%s_hi_rv, ", base);
+    n = n+ sprintf(buf+n,  "%s_lo_fw, ", base);
+    n = n+ sprintf(buf+n,  "%s_lo_rv ", base);
+    std::string out = buf;
+}
+*/
 void Coverage::print_subarrays(FILE *file, int * const  p[2][2] ){
-         print_block(file, p[HI][FW]);
-         print_block(file, p[HI][RV]);
-         print_block(file, p[LO][FW]);
-         print_block(file, p[LO][RV]);
+        
+        pb = &Coverage::print_char_block;
+//        pb = &Coverage::print_block;
+        (this->*Coverage::pb)(file, p[HI][FW]);
+        (this->*Coverage::pb)(file, p[HI][RV]);
+        (this->*Coverage::pb)(file, p[LO][FW]);
+        (this->*Coverage::pb)(file, p[LO][RV]);
      }
+
+void Coverage::sprint_char_block( const int * var, char outstr[] ){
+    for (size_t j = 0; j < (size_t) range * 2; j++) {
+        sprintf(outstr + j, "%C", var[j]+33);
+    }
+    return;
+}
+
+void Coverage::print_char_block(FILE *file, const int * var ){
+    fprintf(file, "\t");
+    char buf[range*2 + 1 ];
+    sprint_char_block(var, buf);
+//    printf ( "%.*s", range*2,  buf );
+    fprintf(file, "%.*s", range*2,  buf );
+}
 
 void Coverage::print_block(FILE *file, const int * var ){
     fprintf(file, "|\t");
@@ -151,7 +205,6 @@ void Coverage::print_block(FILE *file, const int * var ){
         fprintf(file, "%i\t", var[j]);
     }
 }
-
 bool Coverage::within(const int & x){
     return ( (pos - x) < range && (x - pos) < range ) ? true : false ;
 }
