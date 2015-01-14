@@ -14,6 +14,7 @@
 #include <assert.h>     /* assert */
 #include "Global.h"
 #include <sqlite3pp.h>
+//#include <sqlite3ppext.h>
 #include <memory>
 
 size_t const range =200;

@@ -9,40 +9,34 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-def blockToNpArray(a, sep):
+def blockToNpArray(a, sep = '\t'):
         return [ord(s)- int(33) for s in list(a)]
         # return np.array(a.strip(sep).split(sep)).astype(int)
+
+def quadrupleArrayChar(lineList, rangel, sep = '\t'):
+    a = np.empty([2,2, rangel*2], dtype=int)
+    ll = lineList.split('\t')
+    a[Hi,F,:] = blockToNpArray(ll[0])
+    a[Hi,R,:] = blockToNpArray(ll[1])
+    a[Lo,F,:] = blockToNpArray(ll[2])
+    a[Lo,R,:] = blockToNpArray(ll[3])
+    return a
     
-def quadrupleArray(lineList, ii, rangel, sep):
-    a = np.empty([2,2, rangel*2])
+def quadrupleArray(lineList, ii, rangel, sep = '\t'):
+    a = np.empty([2,2, rangel*2], dtype=int)
     a[Hi,F,:] = blockToNpArray(lineList[0 + 4*ii], sep)
     a[Hi,R,:] = blockToNpArray(lineList[1 + 4*ii], sep)
     a[Lo,F,:] = blockToNpArray(lineList[2 + 4*ii], sep)
     a[Lo,R,:] = blockToNpArray(lineList[3 + 4*ii], sep)
     return a
 
-
-
 Lo = 0
 Hi = 1
 F = 0
 R = 1
 
-class CoverageSummary():
-    
-    def __init__( self, line, args ):
-        lineList = line.rstrip("\n").split(args.csvseparator) 
-        line_begin = lineList[0:3]
-        global rl, sep, out_dir
-        rl = args.rangel
-        sep = args.csvseparator
-        self.chromosome = int(line_begin[0])
-        self.pos = int(line_begin[1])
-        self.score = float(line_begin[2])
-        
-        self.parseArrays(lineList[4:])
-        self.x = np.arange(- rl, rl ).astype(int)
-        
+class PlotCoverage:
+    def calcCentres(self):
         self.expCentreMut = np.sum(self.x * sum(self.aln_centres[Lo,:,:]) )/ np.sum(sum(self.aln_centres[Lo,:,:]))
         self.expCentre = np.sum(self.x * sum(self.aln_centres[Hi,:,:])) / np.sum( sum(self.aln_centres[Hi,:,:]) )
         if np.isnan(self.expCentreMut): 
@@ -50,19 +44,10 @@ class CoverageSummary():
         if np.isnan(self.expCentre) : 
             self.expCentre = 0
         
+    def calcCountsRatio(self):
+        self.totCounts = (self.tot_cov[Lo][F][rl]+ self.tot_cov[Lo][R][rl] + self.tot_cov[Hi][F][rl]+ self.tot_cov[Hi][R][rl])
         self.snp_ratio = (self.tot_cov[Lo][F][rl] + self.tot_cov[Lo][R][rl])/ \
         (self.tot_cov[Lo][F][rl]+ self.tot_cov[Lo][R][rl] + self.tot_cov[Hi][F][rl]+ self.tot_cov[Hi][R][rl])
-        return None    
-        
-    def parseArrays(self,lineList):
-        self.tot_cov = quadrupleArray(lineList, 0, rl, sep)
-        self.aln_centres = quadrupleArray(lineList, 1, rl, sep)
-        self.snp_cov = quadrupleArray(lineList, 2, rl, sep)
-        ##
-        full_range = len(self.snp_cov[Lo][F])
-        assert ( full_range == len(self.tot_cov[Hi][F]) )
-        global rl
-        rl = int(np.fix(full_range/2))
         
     def plot_cov(self, field ):
         plt.plot(self.x, self.__dict__[field][Hi][F] + self.__dict__[field][Lo][F],  'b.-')
@@ -179,3 +164,65 @@ class CoverageSummary():
         print( m , end = sep, file = fid)
         m = sep.join( map(str, self.__dict__[field][Lo][R][rl-subrange:rl+subrange]) )
         print( m , end = '\n', file = fid)
+        
+###############################################################################    
+
+class CoverageSummary( PlotCoverage ):
+    
+    def __init__( self, line, args ):
+        lineList = line.rstrip("\n").split(args.csvseparator) 
+        line_begin = lineList[0:3]
+        global rl, sep, out_dir
+        rl = args.rangel
+        sep = args.csvseparator
+        self.chromosome = int(line_begin[0])
+        self.pos = int(line_begin[1])
+        self.score = float(line_begin[2])
+        
+        self.parseArrays(lineList[4:])
+        self.x = np.arange(- rl, rl ).astype(int)
+        
+        self.calcCentres()
+        self.calcCountsRatio()
+        return None    
+        
+    def parseArrays(self,lineList):
+        self.tot_cov = quadrupleArray(lineList, 0, rl, sep)
+        self.aln_centres = quadrupleArray(lineList, 1, rl, sep)
+        self.snp_cov = quadrupleArray(lineList, 2, rl, sep)
+        ##
+        full_range = len(self.snp_cov[Lo][F])
+        assert ( full_range == len(self.tot_cov[Hi][F]) )
+        global rl
+        rl = int(np.fix(full_range/2))
+###############################################################################    
+
+class CoverageSqlite( PlotCoverage ):
+    
+    def __init__( self, chrs, line, args ):
+        global rl, sep, out_dir
+        rl = args.rangel
+        sep = args.csvseparator
+        self.chromosome = chrs
+        self.pos = line[0]
+        self.score = line[1]
+        self.totCounts = line[2]
+        self.snp_ratio = line[4]
+        
+        self.parseArrays(line)
+        self.x = np.arange(- rl, rl ).astype(int)
+        
+        self.calcCentres()
+        return None    
+        
+    def parseArrays(self,lineList):
+        firstArrInd = 5
+        self.tot_cov =     quadrupleArrayChar(lineList[firstArrInd    ], rl, sep)
+        self.snp_cov =     quadrupleArrayChar(lineList[firstArrInd + 1], rl, sep)
+        self.aln_centres = quadrupleArrayChar(lineList[firstArrInd + 2], rl, sep)
+        ##
+        full_range = len(self.snp_cov[Lo][F])
+        assert ( full_range == len(self.tot_cov[Hi][F]) )
+        global rl
+        rl = int(np.fix(full_range/2))
+        

@@ -5,6 +5,7 @@
 #include<Alignment.h>
 #include <stdexcept>
 #include <sqlite3pp.h>
+//#include <sqlite3ppext.h>
 
 using namespace std;
 
@@ -49,11 +50,13 @@ private:
     size_t end_pos(){  return (size_t) start_pos + range * 2;   }
     
     void (Coverage::*pb)(FILE *file, const int * var) = NULL;
+    void (Coverage::*pbdb)(char *outstr, const int * var) = NULL;
     void print_block(FILE *file, const int * var );
     void print_char_block(FILE *file, const int * var );
     void print_subarrays(FILE *file, int * const  p[2][2] );
 
-    void sprint_char_block( const int * var, char outstr[] );
+    void sprint_char_block(char outstr[], const int * var);
+    std::string sprint_subarrays( int * const  p[2][2] );
 
 public:
     int pos ;
