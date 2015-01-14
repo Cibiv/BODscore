@@ -141,21 +141,43 @@ void Coverage::print_cov(const int & cc, FILE *file){
 void Coverage::print_cov_db(const int & cc, sqlite3pp::database & db){
                         // clog << "printing ..." << endl;
 //                    cout << "REACHED 1!" << endl;
-                    char tot_cov_str[(range*2 + 1)*4];
-                    
+                    int altCounts= tot_cov[LO][FW][range] + tot_cov[LO][RV][range];
+                    int totCounts = altCounts + tot_cov[HI][FW][range] + tot_cov[HI][RV][range];
+
+                    float snp_ratio = (float) altCounts / (float) totCounts;
+
+                    std::string tot_cov_str = sprint_subarrays(tot_cov);
+                    std::string snp_cov_str = sprint_subarrays(snp_cov);
+                    std::string aln_ctr_str = sprint_subarrays(aln_centres);
+
+                    if (tot_cov_str.length() < 4 * (2*range + 1) - 1){
+                        cerr << "short string!!" << endl << tot_cov_str.c_str() << endl;
+                    }
+
                     char sql[1024];
                     sprintf (sql, "INSERT INTO coverage_%u "  \
-                         "(pos, score, %s ) VALUES (:pos, :score) ", \
-                          (int) cc+1, "tot_cov");
+                         "(pos, totCounts, refCounts, snp_ratio, score, totCov, snpCov, alnCtr) " \
+                         "VALUES (:pos, :totCounts, :refCounts, :snp_ratio, :score, :tot_cov, :snp_cov, :aln_ctr) ", \
+                          (int) cc+1 );
 
                     sqlite3pp::command cmd( db, sql);
                     cmd.bind(":pos", pos + 1 );
+                    cmd.bind(":totCounts", totCounts);
+                    cmd.bind(":refCounts", totCounts - altCounts);
+                    cmd.bind(":snp_ratio", snp_ratio);
                     cmd.bind(":score", score);
-                    clog << cmd.execute() << endl;
-
-
+                    cmd.bind(":tot_cov", tot_cov_str.c_str() );
+                    cmd.bind(":snp_cov", snp_cov_str.c_str() );
+                    cmd.bind(":aln_ctr", aln_ctr_str.c_str() );
+                    
+                    try {
+                        cmd.execute();
+                    } catch (exception& ex) {
+                        cerr << ex.what() << endl;
+                    }
 //                    cout << "REACHED 2!" << endl;
                    //      print_subarrays( file, tot_cov );
+
                         
                   //      print_subarrays( file, aln_centres);
                         
@@ -174,6 +196,23 @@ std::string Coverage::col_names(const char * base){
     std::string out = buf;
 }
 */
+std::string Coverage::sprint_subarrays( int * const  p[2][2] ){
+
+        int buf_len = range*2 + 1 ;
+        char buf[ 4 * buf_len ]; 
+
+        pbdb = &Coverage::sprint_char_block;
+//        pb = &Coverage::print_block;
+        (this->*Coverage::pbdb)(buf            , p[HI][FW]);
+        (this->*Coverage::pbdb)(buf + buf_len  , p[HI][RV]);
+        (this->*Coverage::pbdb)(buf + buf_len*2, p[LO][FW]);
+        (this->*Coverage::pbdb)(buf + buf_len*3, p[LO][RV]);
+        
+        std::string my_string( buf+1 , 4 * buf_len - 1);
+        return my_string;
+
+     }
+
 void Coverage::print_subarrays(FILE *file, int * const  p[2][2] ){
         
         pb = &Coverage::print_char_block;
@@ -184,17 +223,18 @@ void Coverage::print_subarrays(FILE *file, int * const  p[2][2] ){
         (this->*Coverage::pb)(file, p[LO][RV]);
      }
 
-void Coverage::sprint_char_block( const int * var, char outstr[] ){
+void Coverage::sprint_char_block(  char outstr[], const int * var ){
+    sprintf(outstr, "\t");
     for (size_t j = 0; j < (size_t) range * 2; j++) {
-        sprintf(outstr + j, "%C", var[j]+33);
+        sprintf(outstr + 1 + j, "%C", var[j]+33);
     }
     return;
 }
 
 void Coverage::print_char_block(FILE *file, const int * var ){
-    fprintf(file, "\t");
-    char buf[range*2 + 1 ];
-    sprint_char_block(var, buf);
+//    fprintf(file, "\t");
+    char buf[range*2 + 2 ];
+    sprint_char_block( buf, var);
 //    printf ( "%.*s", range*2,  buf );
     fprintf(file, "%.*s", range*2,  buf );
 }

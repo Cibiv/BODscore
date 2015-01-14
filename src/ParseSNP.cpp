@@ -144,9 +144,13 @@ void ParseSNP::parseVCF() {
     string ref;
     
     FILE * plotFile = NULL;
+    sqlite3pp::transaction * xct;
+    bool transaction_flag = false;
+    // unique_ptr<sqlite3pp::transaction> xct;
     if (db_flag){
         cout << "REACHED !" << endl;
         db  = new sqlite3pp::database( plot_file.c_str() ) ;
+       // xct = new sqlite3pp::transaction(*db);
         //db.reset(new sqlite3pp::database( plot_file.c_str() ) );
     } else {
         remove(plot_file.c_str());
@@ -193,10 +197,9 @@ void ParseSNP::parseVCF() {
                     
                     if ( chrs.count(current_chr.c_str()) > 0){
                         if  (chrs[current_chr.c_str()]!= id) { //found
-//                        clog << "current_chr " << id << " num of snps " << genome[id].size() << endl;
+                        clog << "current_chr " << id  << endl;
                             id = chrs[current_chr.c_str()];
                             ref = fasta->getChr(id);
-                                                 // clog << "table " << id+1 << " has been created" << endl;
                            };
                       
                     } else if (broken_chromosome.compare(current_chr)!=0){
@@ -210,6 +213,13 @@ void ParseSNP::parseVCF() {
                     if (id != old_id) {
                         old_pos = -100000;
                         if (db_flag) {
+                            if (transaction_flag){
+                                 cout << "commiting" << endl;
+                                 xct->commit();
+                                 delete [] xct;
+                              //  xct->rollback(); // sqlite transaction;
+                            }
+                            xct = new sqlite3pp::transaction(*db);
                             init_sql_table(id);
                         }
                     }
@@ -243,6 +253,8 @@ void ParseSNP::parseVCF() {
         vcfFile.getline(buffer, buffer_size);
     }
     clog << "VCF file has been successfully processed" << endl;
+    xct->commit();
+    // xct->rollback(); // sqlite
     vcfFile.close();
     if (db_flag){
         
@@ -406,10 +418,17 @@ void ParseSNP::compute(){
 }
 
 void ParseSNP::init_sql_table( size_t & id){
-        char sql[128];
+        char sql[256];
         sprintf(sql, "CREATE TABLE IF NOT EXISTS coverage_%u ("  \
                            "pos INT PRIMARY KEY     NOT NULL , " \
-                           "score FLOAT );", (int) id+1);
+                           "totCounts INT, " \
+                           "refCounts INT, " \
+                           "snp_ratio FLOAT, " \
+                           "score FLOAT , " \
+                           "totCov TEXT, " \
+                           "snpCov TEXT, " \
+                           "alnCtr TEXT);", (int) id+1 );
+                          // "tot_cov CHAR(%u) );", (int) id+1, (range*2+1)*4 );
                           //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
                           //                            cout << sql[120] << endl;
         try {

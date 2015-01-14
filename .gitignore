@@ -9,3 +9,5 @@ src/sambamio/**/*.svn
 !src/sambamio/*.cpp
 src/plots/**/*
 **/*.eps
+**/.fuse_hidden*
+src/pyscripts/HL7-out.tab
