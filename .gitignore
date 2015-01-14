@@ -8,3 +8,4 @@ src/sambamio/**/*.svn
 !src/sambamio/*.h
 !src/sambamio/*.cpp
 src/plots/**/*
+**/*.eps

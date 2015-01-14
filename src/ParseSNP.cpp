@@ -10,26 +10,33 @@
 void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
 
     CmdLine cmdss("Comp Motiv", ' ', version.c_str());
+    
     ValueArg<string> read_file("q", "mapped_reads",
             "Mapped read file (sam/bam)", true, "#", "string");
     cmdss.add(read_file);
-    ValueArg<string> ref_file("r", "ref_file", "Reference file (fasta)", true,
-            "#", "string");
-    cmdss.add(ref_file);
-    ValueArg<string> snp_file("s", "snp_file", "VCF file", true, "#", "string");
-    cmdss.add(snp_file);
-
+    //
+    ValueArg<string> ref_file_arg("r", "ref_file", "Reference file (fasta)", true, "#", "string");
+    cmdss.add(ref_file_arg);
+    //
+    ValueArg<string> snp_file_arg("s", "snp_file", "VCF file", true, "#", "string");
+    cmdss.add(snp_file_arg);
+    //
     ValueArg<int> leng("l", "read_length", "maximum read length", true, -1, "int");
     cmdss.add(leng);
-
-    ValueArg<string> plots("p", "plot_data",
-            "Name of the file for the data required for the R script",
+    //
+    ValueArg<string> db_file_arg("d", "db_file", "Sqlite file to write the output", false, "#", "string");
+    //cmdss.add(db_file_arg);
+    //
+    ValueArg<string> plot_file_arg("p", "plot_file",
+            "Name of the file for the data required for the Python script",
             false, "#", "string");
-    cmdss.add(plots);
-
+    //cmdss.add(plot_file_arg);
+    //
     ValueArg<string> out("o", "outputfile", "File to print the distripution to",
             true, "#", "string");
     cmdss.add(out);
+    //
+    cmdss.xorAdd( db_file_arg, plot_file_arg );
 
     try {
         cmdss.parse(argc, argv); //parse arguments
@@ -39,11 +46,20 @@ void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
             output = read_filename;
             output += ".mot";
         }
-        reffile = ref_file.getValue();
-        snpfile = snp_file.getValue();
+        reffile = ref_file_arg.getValue();
+        snpfile = snp_file_arg.getValue();
         read_length = leng.getValue();
         range =  3 * read_length / 2 ;
-        plot_file = plots.getValue();
+     
+        if ( plot_file_arg.isSet() )
+            plot_file = plot_file_arg.getValue();
+            //db_file = '#';
+        else if ( db_file_arg.isSet() )
+            // plot_file = '#';
+            plot_file = db_file_arg.getValue();
+ 
+        db_flag = db_file_arg.isSet();
+
         init();
         parseVCF();
 
@@ -127,16 +143,23 @@ void ParseSNP::parseVCF() {
     FastaParser * fasta = new FastaParser(reffile);
     string ref;
     
-    remove(plot_file.c_str());
-    FILE * plotFile = fopen(plot_file.c_str(), "a");
-    if (plotFile == NULL) {
-        cout << "Error in printing: The file or path that you set "
+    FILE * plotFile = NULL;
+    if (db_flag){
+        cout << "REACHED !" << endl;
+        db  = new sqlite3pp::database( plot_file.c_str() ) ;
+        //db.reset(new sqlite3pp::database( plot_file.c_str() ) );
+    } else {
+        remove(plot_file.c_str());
+        plotFile = fopen(plot_file.c_str(), "a");
+        if (plotFile == NULL) {
+            cout << "Error in printing: The file or path that you set "
                 << output.c_str()
                 << " is not valid. It can be that there is no disc space available."
                 << endl;
                 ios_base::failure("cannot open output file for writing!");
                 exit(0);
-    }
+        }
+   };
 
     if (read_filename.find(".bam") != string::npos) {
     //      cout << "BAM File" << endl;
@@ -168,10 +191,14 @@ void ParseSNP::parseVCF() {
 
                     int pos = atoi(&buffer[i]) - 1;
                     
-                    if (chrs.find(current_chr.c_str()) != chrs.end()) { //found
+                    if ( chrs.count(current_chr.c_str()) > 0){
+                        if  (chrs[current_chr.c_str()]!= id) { //found
 //                        clog << "current_chr " << id << " num of snps " << genome[id].size() << endl;
-                        id = chrs[current_chr.c_str()];
-                        ref = fasta->getChr(id); 
+                            id = chrs[current_chr.c_str()];
+                            ref = fasta->getChr(id);
+                                                 // clog << "table " << id+1 << " has been created" << endl;
+                           };
+                      
                     } else if (broken_chromosome.compare(current_chr)!=0){
                         broken_chromosome = current_chr;
                         cerr << endl << "Contig not found: \t" << broken_chromosome << endl;
@@ -182,31 +209,34 @@ void ParseSNP::parseVCF() {
 
                     if (id != old_id) {
                         old_pos = -100000;
+                        if (db_flag) {
+                            init_sql_table(id);
+                        }
                     }
 
-                    if (pos > old_pos + range) {
-                        old_id = id;
-                        old_pos = pos;
+                   old_id = id;
+                   old_pos = pos;
 
-                        clog << "chr " <<  id << " pos " << pos;
+                   clog << "chr " <<  id << " pos " << pos;
      
-                        // *cov = Coverage(pos, range);
-                        cov->pos = pos;
-                        cov->start_pos = pos - range;
+                   // *cov = Coverage(pos, range);
+                   cov->pos = pos;
+                   cov->start_pos = pos - range;
   //                      clog << " +++ ";
   //                      clog << cov->cov_90[0];
-                        cov->clear_arrays();
-                        process_snp(cov, ref, mapped_file, id);
-                        cov->print_cov(id, plotFile);
-                        cov->estimate( read_length );
+                   cov->clear_arrays();
+                   process_snp(cov, ref, mapped_file, id);
+                   if (db_flag){
+                       cov->print_cov_db(id, *db);
+                   } else { cov->print_cov(id, plotFile); }
 
-                     } else {
-//                        cout << "Not: chr: " << chr << " " << pos << endl;
-                     }
+                   cov->estimate( read_length );
+
                 }
                 if (buffer[i] == '\t') {
                     count++;
                 }
+            // remove db unique_ptr
             }
         }
 
@@ -214,7 +244,9 @@ void ParseSNP::parseVCF() {
     }
     clog << "VCF file has been successfully processed" << endl;
     vcfFile.close();
-    fclose(plotFile);
+    if (db_flag){
+        
+    } else  fclose(plotFile);
 }
 
 void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, const size_t &cc){
@@ -370,5 +402,22 @@ void ParseSNP::print() {
 }
 
 void ParseSNP::compute(){
+
+}
+
+void ParseSNP::init_sql_table( size_t & id){
+        char sql[128];
+        sprintf(sql, "CREATE TABLE IF NOT EXISTS coverage_%u ("  \
+                           "pos INT PRIMARY KEY     NOT NULL , " \
+                           "score FLOAT );", (int) id+1);
+                          //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
+                          //                            cout << sql[120] << endl;
+        try {
+             clog << "[sqlite3 :] " << sql << " >>> " ;
+             clog << db->execute(sql) << endl;
+        } catch (exception& ex) {
+             cerr << ex.what() << endl;
+        }
+        // clog << "table " << id+1 << " has been created" << endl;
 
 }

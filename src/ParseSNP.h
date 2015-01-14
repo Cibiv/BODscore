@@ -13,6 +13,8 @@
 #include <map>
 #include <assert.h>     /* assert */
 #include "Global.h"
+#include <sqlite3pp.h>
+#include <memory>
 
 size_t const range =200;
 // int const step=5;
@@ -35,6 +37,10 @@ private:
     string reffile;
     string output;
     string plot_file;
+    string db_file;
+    bool db_flag = false;
+    // unique_ptr<sqlite3pp::database> 
+    sqlite3pp::database * db;
     int read_length;
     int range;
 
@@ -50,6 +56,7 @@ private:
     void print();
     void parseVCF();
     void init();
+    void init_sql_table( size_t & id);
 public:
 	ParseSNP(){
 		read_length=0;

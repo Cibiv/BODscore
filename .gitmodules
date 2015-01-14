@@ -1,0 +1,3 @@
+[submodule "libs/sqlite3pp"]
+	path = libs/sqlite3pp
+	url = git://github.com/iwongu/sqlite3pp

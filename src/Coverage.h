@@ -4,6 +4,7 @@
 #include<string>
 #include<Alignment.h>
 #include <stdexcept>
+#include <sqlite3pp.h>
 
 using namespace std;
 
@@ -46,8 +47,13 @@ private:
     }
 
     size_t end_pos(){  return (size_t) start_pos + range * 2;   }
+    
+    void (Coverage::*pb)(FILE *file, const int * var) = NULL;
     void print_block(FILE *file, const int * var );
+    void print_char_block(FILE *file, const int * var );
     void print_subarrays(FILE *file, int * const  p[2][2] );
+
+    void sprint_char_block( const int * var, char outstr[] );
 
 public:
     int pos ;
@@ -112,6 +118,7 @@ public:
     float estimate( int & read_length );
     void compute_cov( Alignment * aln );
     void print_cov( const int & cc, FILE *file );
+    void print_cov_db( const int & cc, sqlite3pp::database & db );
     bool within( const int & x );
 
 };

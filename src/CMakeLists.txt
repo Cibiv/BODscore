@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -std=c++0x")
+
 include_directories (sambamio)
 
 add_executable(vshape 	BasisClass.cpp
@@ -16,3 +18,5 @@ add_executable(vshape 	BasisClass.cpp
  					
 TARGET_LINK_LIBRARIES(vshape BamTools-static)
 TARGET_LINK_LIBRARIES(vshape zlibstatic)
+target_link_libraries(vshape sqlite3pp)
+
