@@ -37,5 +37,5 @@ An earlier R script (`src/rscript.R`) is outdated and is not compatible with the
 Contact:
 --------
 If you have any questions/concerns please drop an email to:
-    fritz.sedlazeck@univie.ac.at
+    fritz.sedlazeck@gmail.com
     d.lituiev@gmail.com
