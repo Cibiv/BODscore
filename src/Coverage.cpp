@@ -141,18 +141,34 @@ void Coverage::print_cov(const int & cc, FILE *file){
 void Coverage::print_cov_db(const int & cc, sqlite3pp::database & db){
                         // clog << "printing ..." << endl;
 //                    cout << "REACHED 1!" << endl;
-                    int altCounts= tot_cov[LO][FW][range] + tot_cov[LO][RV][range];
+                    
+                    buf_len = range*2 + 1 ; // class int 
+                    int buf_tot_len = 4 * buf_len;
+                    int altCounts = tot_cov[LO][FW][range] + tot_cov[LO][RV][range];
                     int totCounts = altCounts + tot_cov[HI][FW][range] + tot_cov[HI][RV][range];
 
                     float snp_ratio = (float) altCounts / (float) totCounts;
 
-                    std::string tot_cov_str = sprint_subarrays(tot_cov);
-                    std::string snp_cov_str = sprint_subarrays(snp_cov);
-                    std::string aln_ctr_str = sprint_subarrays(aln_centres);
+                    char tot_cov_str[buf_tot_len] ;
+                    char snp_cov_str[buf_tot_len] ;
+                    char aln_ctr_str[buf_tot_len] ;
 
-                    if (tot_cov_str.length() < 4 * (2*range + 1) - 1){
+                    sprint_subarrays(tot_cov_str, tot_cov);
+                    sprint_subarrays(snp_cov_str, snp_cov);
+                    sprint_subarrays(aln_ctr_str, aln_centres);
+
+/*                    clog << "blob length: "<< tot_cov_str.length() << endl;
+                    if (tot_cov_str.length() < buf_tot_len){
                         cerr << "short string!!" << endl << tot_cov_str.c_str() << endl;
                     }
+*/
+                    for (size_t i = 1; i<=4; i++){
+                        if (tot_cov_str[i*buf_len - 1] != 0){
+                            cerr << "corrupted byte ending # " << i ;
+                            cerr << " value " << (int) tot_cov_str[i*buf_len] << endl;
+                        }
+                    }
+
 
                     char sql[1024];
                     sprintf (sql, "INSERT INTO coverage_%u "  \
@@ -166,9 +182,9 @@ void Coverage::print_cov_db(const int & cc, sqlite3pp::database & db){
                     cmd.bind(":refCounts", totCounts - altCounts);
                     cmd.bind(":snp_ratio", snp_ratio);
                     cmd.bind(":score", score);
-                    cmd.bind(":tot_cov", tot_cov_str.c_str() );
-                    cmd.bind(":snp_cov", snp_cov_str.c_str() );
-                    cmd.bind(":aln_ctr", aln_ctr_str.c_str() );
+                    cmd.bind(":tot_cov", (void const*) tot_cov_str, buf_tot_len );
+                    cmd.bind(":snp_cov", (void const*) snp_cov_str, buf_tot_len);
+                    cmd.bind(":aln_ctr", (void const*) aln_ctr_str, buf_tot_len);
                     
                     try {
                         cmd.execute();
@@ -177,7 +193,6 @@ void Coverage::print_cov_db(const int & cc, sqlite3pp::database & db){
                     }
 //                    cout << "REACHED 2!" << endl;
                    //      print_subarrays( file, tot_cov );
-
                         
                   //      print_subarrays( file, aln_centres);
                         
@@ -196,10 +211,7 @@ std::string Coverage::col_names(const char * base){
     std::string out = buf;
 }
 */
-std::string Coverage::sprint_subarrays( int * const  p[2][2] ){
-
-        int buf_len = range*2 + 1 ;
-        char buf[ 4 * buf_len ]; 
+void Coverage::sprint_subarrays( char * buf, int * const  p[2][2] ){
 
         pbdb = &Coverage::sprint_char_block;
 //        pb = &Coverage::print_block;
@@ -208,8 +220,8 @@ std::string Coverage::sprint_subarrays( int * const  p[2][2] ){
         (this->*Coverage::pbdb)(buf + buf_len*2, p[LO][FW]);
         (this->*Coverage::pbdb)(buf + buf_len*3, p[LO][RV]);
         
-        std::string my_string( buf+1 , 4 * buf_len - 1);
-        return my_string;
+        // std::string my_string( buf, 4 * buf_len );
+        // return my_string;
 
      }
 
@@ -224,10 +236,10 @@ void Coverage::print_subarrays(FILE *file, int * const  p[2][2] ){
      }
 
 void Coverage::sprint_char_block(  char outstr[], const int * var ){
-    sprintf(outstr, "\t");
-    for (size_t j = 0; j < (size_t) range * 2; j++) {
-        sprintf(outstr + 1 + j, "%C", var[j]+33);
+    for (int j = 0; j < 2 * range; j++) {
+        outstr[j] = var[j] + 1; // sprintf(outstr + 1 + j, "%C", var[j]+33);
     }
+    outstr[ 2*range ] = 0;
     return;
 }
 

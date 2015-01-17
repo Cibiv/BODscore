@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jan 14 12:52:05 2015
@@ -32,11 +33,6 @@ args = parser.parse_args()
 ###############################################################################
 rl = args.rangel
 
-# subprocess.call(['wc', '-l', args.inFile])
-num_lines = int(subprocess.check_output(['wc', '-l', args.inFile]).decode().split(' ')[0])
-
-print("lines: %u" % num_lines)
-
 import shutil
 shutil.rmtree(args.out_dir)
 
@@ -52,31 +48,37 @@ def ResultIter(cursor, arraysize=5000):
             yield result
 ###############################################################################
             
-CHROMOSOMES = [1]
-ii = 0
-loc_covs = [None]*(max(CHROMOSOMES)+1)
-snp_rats = loc_covs
-tot_covs = loc_covs
-
+condition = " WHERE (snp_ratio < .67) AND (snp_ratio > .33)"
+CHROMOSOMES = [1, 4, 5]
+nrows = 0
 with sqlite3.connect(args.inFile) as conn:
     curs = conn.cursor()
     for cc in CHROMOSOMES:
-        curs.execute("SELECT Count(*) FROM coverage_%u"% cc )
-        nrows = curs.fetchone()[0]
-        print('chr %u, number of rows: %u' % (cc, nrows) )
-        #
-        loc_covs[cc] = np.zeros( (nrows, 1), dtype = int)
-        snp_rats[cc] = np.zeros( (nrows, 1), dtype = int)
-        tot_covs[cc] = np.zeros( (nrows, 2*rl), dtype = int)
-        ##
-        curs.execute("select * from %s" % "coverage_%u"% cc )
-        for rr in ResultIter(curs):
-            # print(rr)
-            cs = CoverageSqlite(cc, rr, args)
-            loc_covs[cc][ii] = cs.totCounts
-            snp_rats[cc][ii] = cs.snp_ratio
-            tot_covs[cc][ii,:,:,:] = cs.tot_cov
-            ii+=1
+        ii = 0
+        curs.execute("SELECT Count(*) FROM coverage_%u"% cc + condition)
+        nrows_chr = curs.fetchone()[0]
+        print('chr %u, number of rows: %u' % (cc, nrows_chr) )
+        nrows += nrows_chr
         
+
+loc_covs = np.zeros( (nrows, 1), dtype = int)
+snp_rats = np.zeros( (nrows, 1), dtype = int)
+tot_covs = np.zeros( (nrows, 4*2*rl), dtype = int)
+
+ii = 0
+with sqlite3.connect(args.inFile) as conn:
+    curs = conn.cursor()
+    for cc in CHROMOSOMES:
+        ##
+        curs.execute("select * from %s" % "coverage_%u"% cc + condition)
+        for rr in ResultIter(curs):
+            # print('chr:%u, pos:%u' % (cc, rr[0]) ) 
+            cs = CoverageSqlite(cc, rr, args)
+            loc_covs[ii] = cs.totCounts
+            snp_rats[ii] = cs.snp_ratio
+            tot_covs[ii,:] = cs.tot_cov.flatten()
+            ii+=1
+
+tot_covs.shape
     
     

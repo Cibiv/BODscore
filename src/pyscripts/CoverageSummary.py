@@ -8,10 +8,56 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import struct
+
+def printBlob(R):
+    i = 0
+    for c in range(len(R) ):
+        print( '%2s' %hex( R[c] ) [2:], end = '  ')
+        i += 1
+        if (i % 16 == 0):
+            print('', end = '\n')
+    print('', end = '\n')
+        
+        
+def controlPoints(rr):
+   return [rr + rr*ii + ii for ii in range(4)]
+   
+def checkControlPoints(L, cps):
+    for cc in cps:
+        if not (L[cc]==0):
+            printBlob(L)
+            print('byte# %u, hex:  %2s' %(cc, hex(L[cc]) [2:] ) )
+        assert(L[cc]==0), 'corrupted byte string!'
 
 def blockToNpArray(a, sep = '\t'):
-        return [ord(s)- int(33) for s in list(a)]
+    # int.from_bytes(b'y\xcc\xa6\xbb', byteorder='big')
+    return [ord(s)- int(33) for s in list(a)]
         # return np.array(a.strip(sep).split(sep)).astype(int)
+
+def splitByteIntoNArrays(lineList, N, block_size):
+    # assert( len(lineList) == (1 + 2*rangel)*N ), 'wrong blob length: %u' % len(lineList)
+    " split into N int numpy sub-arrays within list intList"
+    it = struct.iter_unpack('B', lineList)
+    intList = [[] for Null in range(N)]
+    for i, temp_char in enumerate(it):
+        # print('ind %u\t arr %u' % (i, i//(2*rangel+1)) )
+        intList[i // block_size].append(temp_char[0])
+    return intList
+    
+def quadrupleArrayByte(lineList, rangel, sep = '\t'):
+    block_size = 1 + 2*rangel
+    assert( len(lineList) == block_size*4 ), 'wrong blob length: %u' % len(lineList)
+    checkControlPoints(lineList, controlPoints(2*rangel))
+    intList = splitByteIntoNArrays(lineList, 4, block_size)
+
+    a = np.empty([2,2, rangel*2], dtype=int)
+    a[Hi,F,:] = intList[0][:-1]
+    a[Hi,R,:] = intList[1][:-1]
+    a[Lo,F,:] = intList[2][:-1]
+    a[Lo,R,:] = intList[3][:-1]
+    return a
+
 
 def quadrupleArrayChar(lineList, rangel, sep = '\t'):
     a = np.empty([2,2, rangel*2], dtype=int)
@@ -217,9 +263,9 @@ class CoverageSqlite( PlotCoverage ):
         
     def parseArrays(self,lineList):
         firstArrInd = 5
-        self.tot_cov =     quadrupleArrayChar(lineList[firstArrInd    ], rl, sep)
-        self.snp_cov =     quadrupleArrayChar(lineList[firstArrInd + 1], rl, sep)
-        self.aln_centres = quadrupleArrayChar(lineList[firstArrInd + 2], rl, sep)
+        self.tot_cov =     quadrupleArrayByte(lineList[firstArrInd    ], rl, sep)
+        self.snp_cov =     quadrupleArrayByte(lineList[firstArrInd + 1], rl, sep)
+        self.aln_centres = quadrupleArrayByte(lineList[firstArrInd + 2], rl, sep)
         ##
         full_range = len(self.snp_cov[Lo][F])
         assert ( full_range == len(self.tot_cov[Hi][F]) )
