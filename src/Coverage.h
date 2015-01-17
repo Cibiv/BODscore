@@ -18,7 +18,7 @@ size_t const RV = 1;
 class Coverage{
 private:
     float conf_val(const int & start_cov, const int & stop_cov, const int & max_cov);
-
+    int buf_len;
 
     void allocate_arrays(){
         tot_cov[0][0] = new int[range * 2];
@@ -56,7 +56,7 @@ private:
     void print_subarrays(FILE *file, int * const  p[2][2] );
 
     void sprint_char_block(char outstr[], const int * var);
-    std::string sprint_subarrays( int * const  p[2][2] );
+    void sprint_subarrays( char * buf, int * const  p[2][2] );
 
 public:
     int pos ;

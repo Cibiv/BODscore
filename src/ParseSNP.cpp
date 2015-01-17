@@ -146,12 +146,9 @@ void ParseSNP::parseVCF() {
     FILE * plotFile = NULL;
     sqlite3pp::transaction * xct;
     bool transaction_flag = false;
-    // unique_ptr<sqlite3pp::transaction> xct;
     if (db_flag){
         cout << "REACHED !" << endl;
         db  = new sqlite3pp::database( plot_file.c_str() ) ;
-       // xct = new sqlite3pp::transaction(*db);
-        //db.reset(new sqlite3pp::database( plot_file.c_str() ) );
     } else {
         remove(plot_file.c_str());
         plotFile = fopen(plot_file.c_str(), "a");
@@ -174,9 +171,8 @@ void ParseSNP::parseVCF() {
  //   clog << "first chr size " << genome[0].size() << endl;
     clog << "`range` has been set to: " << range << endl;
     int old_pos  = -100000;
-    size_t id = 0;
-    size_t old_id = 100000;
-    ref = fasta->getChr(id);
+    size_t id = 100000;
+    // ref = fasta->getChr(id);
 
     clog << "allocating coverage";
     Coverage * cov;
@@ -184,71 +180,75 @@ void ParseSNP::parseVCF() {
     clog << " done" << endl;
 
     while (!vcfFile.eof()) {
-        if (buffer[0] != '#') {
-            int count = 0;
-            string current_chr;
-            for (size_t i = 0; i < buffer_size && buffer[i] != '\0' && buffer[i] != '\n'; i++) {
-                if (count == 0 && buffer[i] != '\t') {
-                    current_chr += buffer[i];
-                }
-                if (count == 1 && buffer[i - 1] == '\t') {
-
-                    int pos = atoi(&buffer[i]) - 1;
-                    
-                    if ( chrs.count(current_chr.c_str()) > 0){
-                        if  (chrs[current_chr.c_str()]!= id) { //found
-                        clog << "current_chr " << id  << endl;
-                            id = chrs[current_chr.c_str()];
-                            ref = fasta->getChr(id);
-                           };
-                      
-                    } else if (broken_chromosome.compare(current_chr)!=0){
-                        broken_chromosome = current_chr;
-                        cerr << endl << "Contig not found: \t" << broken_chromosome << endl;
-                        continue;
-                    } else {
-                        continue;
-                    }
-
-                    if (id != old_id) {
-                        old_pos = -100000;
-                        if (db_flag) {
-                            if (transaction_flag){
-                                 cout << "commiting" << endl;
-                                 xct->commit();
-                                 delete [] xct;
-                              //  xct->rollback(); // sqlite transaction;
-                            }
-                            xct = new sqlite3pp::transaction(*db);
-                            init_sql_table(id);
-                        }
-                    }
-
-                   old_id = id;
-                   old_pos = pos;
-
-                   clog << "chr " <<  id << " pos " << pos;
-     
-                   // *cov = Coverage(pos, range);
-                   cov->pos = pos;
-                   cov->start_pos = pos - range;
-  //                      clog << " +++ ";
-  //                      clog << cov->cov_90[0];
-                   cov->clear_arrays();
-                   process_snp(cov, ref, mapped_file, id);
-                   if (db_flag){
-                       cov->print_cov_db(id, *db);
-                   } else { cov->print_cov(id, plotFile); }
-
-                   cov->estimate( read_length );
-
-                }
-                if (buffer[i] == '\t') {
-                    count++;
-                }
-            // remove db unique_ptr
-            }
+        if (buffer[0] == '#'){
+            vcfFile.getline(buffer, buffer_size);
+            continue;
         }
+        int count = 0;
+        string current_chr;
+        int pos = 0;
+        for (size_t i = 0; i < buffer_size && buffer[i] != '\0' && buffer[i] != '\n'; i++) {
+            if (count == 0 && buffer[i] != '\t') {
+                current_chr += buffer[i];
+            }
+
+            if (count == 1 && buffer[i - 1] == '\t') { //start: pos column
+                pos = atoi(&buffer[i]) - 1;
+                break;
+            } // end: pos column
+            if (buffer[i] == '\t') {
+                count++;
+            }
+            // remove db unique_ptr
+        }
+        // process chromosome:
+        // clog << current_chr.c_str() << "  "; 
+
+        if ( chrs.count(current_chr.c_str()) > 0){ //found
+
+            if  (chrs[current_chr.c_str()]!= id) { // new chromosome
+                id = chrs[current_chr.c_str()];
+                clog << "current_chr " << id  << endl;
+                ref = fasta->getChr(id);
+                old_pos = -100000;
+
+                if (db_flag) {
+                    if (transaction_flag){
+                        cout << "commiting" << endl;
+                        xct->commit();
+                        delete [] xct;
+                        //  xct->rollback(); // sqlite transaction;
+                    }
+                    xct = new sqlite3pp::transaction(*db);
+                    init_sql_table(id);
+                }
+            };
+                      
+        } else if (broken_chromosome.compare(current_chr)!=0){
+            broken_chromosome = current_chr;
+            cerr << endl << "Contig not found: \t" << broken_chromosome << endl;
+            continue;
+        } else {
+            // cerr << "skipping" << endl;
+            continue;
+        }
+
+        // process position
+        old_pos = pos;
+
+        clog << "chr " <<  id + 1 << " pos " << pos + 1;
+     
+        cov->pos = pos;
+        cov->start_pos = pos - range;
+        cov->clear_arrays();
+        process_snp(cov, ref, mapped_file, id);
+        if (db_flag){
+            cov->print_cov_db(id, *db);
+        } else { cov->print_cov(id, plotFile); }
+
+        cov->estimate( read_length );
+
+        // finally:       
 
         vcfFile.getline(buffer, buffer_size);
     }
@@ -425,9 +425,9 @@ void ParseSNP::init_sql_table( size_t & id){
                            "refCounts INT, " \
                            "snp_ratio FLOAT, " \
                            "score FLOAT , " \
-                           "totCov TEXT, " \
-                           "snpCov TEXT, " \
-                           "alnCtr TEXT);", (int) id+1 );
+                           "totCov BLOB, " \
+                           "snpCov BLOB, " \
+                           "alnCtr BLOB);", (int) id+1 );
                           // "tot_cov CHAR(%u) );", (int) id+1, (range*2+1)*4 );
                           //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
                           //                            cout << sql[120] << endl;
