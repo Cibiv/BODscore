@@ -1,6 +1,6 @@
 
 import subprocess
-from CoverageSummary import *
+from ReadCoverage import *
 
 # import pdb
 ###############################################################################
