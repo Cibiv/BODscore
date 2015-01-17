@@ -25,17 +25,17 @@ Re-evaluates the quality of called SNPs (provided in VCF format). Returns:
   The database can be read with the provided  Python `ReadCoverage.py` class 
   and related scripts
 
- - following coverage data is returned within one block:
+- following coverage data is returned within one block:
   + accounting for perfectly matching reads with 100% identity ('`HI`') 
     and loosely matching, between 90% and 100% identity ('`LO`')
   + for forward and reverse strands
 
- - three blocks of coverage profiles are returned:
+- three blocks of coverage profiles are returned:
   + for all reads in the range (`totCov` column in the SQLite database)
   + for reads covering only the locus proper (`snpCov` column)
   + location of centres of the reads covering the SNP locus (`alnCtr` column)
 
- - each chromosome is written in a separate table within the database:
+- each chromosome is written in a separate table within the database:
 
    `coverage_1` -- chr1,
 
