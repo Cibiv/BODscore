@@ -7,7 +7,7 @@ Created on Wed Jan 14 12:52:05 2015
 """
 
 import subprocess
-from CoverageSummary import *
+from ReadCoverage import *
 import sqlite3
 # import pdb
 ###############################################################################

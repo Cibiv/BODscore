@@ -11,3 +11,4 @@ src/plots/**/*
 **/*.eps
 **/.fuse_hidden*
 src/pyscripts/HL7-out.tab
+src/pyscripts/__pycache__/*

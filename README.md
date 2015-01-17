@@ -11,17 +11,36 @@ Quick start:
 
 Functionality:
 ----------
-Reevaluates the quality of called SNPs (provided in VCF format). Returns:
+Re-evaluates the quality of called SNPs (provided in VCF format). Returns:
 
 - the reliability of a SNP (BOD score) based on [the described geometric method](http://dx.doi.org/10.1016%2Fj.ygeno.2012.12.001)
 
-- per-nucleotide coverage of the reference around SNPs provided 
-(+/- floor(1.5 * read length) around the SNP, tab-separated file, 
-with blocks delimited by `\t|\t` ):
+- per-nucleotide coverage of the reference around SNPs is returned either as:
+  
+  + a tab-delimited file
+   (coverage for the range of +/- floor(1.5 * read length) around the SNP, 
+   tab-separated file, with blocks delimited by `\t|\t` ):
 
- - generally (100% and 90% identity)
- - for reads covering the SNP locus (100% and 90% identity)
- - location of centres of the reads covering the SNP locus
+  + an SQLite3 database with coverage written as blob columns (a faster option).
+  The database can be read with the provided  Python `ReadCoverage.py` class 
+  and related scripts
+
+ - following coverage data is returned within one block:
+  + accounting for perfectly matching reads with 100% identity ('`HI`') 
+    and loosely matching, between 90% and 100% identity ('`LO`')
+  + for forward and reverse strands
+
+ - three blocks of coverage profiles are returned:
+  + for all reads in the range (`totCov` column in the SQLite database)
+  + for reads covering only the locus proper (`snpCov` column)
+  + location of centres of the reads covering the SNP locus (`alnCtr` column)
+
+ - each chromosome is written in a separate table within the database:
+
+   `coverage_1` -- chr1,
+
+   `coverage_2` -- chr2 etc.
+
 
 
 Sample files:
