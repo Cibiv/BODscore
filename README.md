@@ -1,13 +1,7 @@
 Quick start:
 ------------
-
-    mkdir -p build/release
-    cd build/release/
-    cmake ../..
-    make
-    cd ../../bin/vshape-*
-    ./vshape
-
+    chmod u+x ./install.sh
+    ./install.sh"
 
 Functionality:
 ----------
