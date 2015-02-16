@@ -41,7 +41,7 @@ os.mkdir(args.out_dir)
 with open(args.inFile, 'r') as f:
     # header = next(f)
     for line in f:
-        cs = CoverageSummary( line, args )
+        cs = ReadCoverage( line, args )
         
         print("len(y) %u" % cs.aln_centres.shape[2] )
         print("plotting chr %u, pos %u" % (cs.chromosome, cs.pos) )

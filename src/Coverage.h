@@ -121,7 +121,7 @@ public:
     float estimate( int & read_length );
     void compute_cov( Alignment * aln );
     void print_cov( const int & cc, FILE *file );
-    void print_cov_db( const int & cc, sqlite3pp::database & db );
+    void print_cov_db( const char * table_name, sqlite3pp::database & db );
     bool within( const int & x );
 
 };

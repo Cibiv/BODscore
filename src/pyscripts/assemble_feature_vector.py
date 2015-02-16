@@ -6,7 +6,7 @@ Created on Tue Dec 16 15:51:09 2014
 """
 
 import subprocess
-from CoverageSummary import *
+from ReadCoverage import *
 
 # import pdb
 ###############################################################################
