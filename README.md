@@ -37,21 +37,21 @@ Re-evaluates the quality of called SNPs (provided in VCF format). Returns:
 
 - each chromosome is written in a separate table within the database:
 
-   `coverage_1` -- chr1,
+   `sample123__coverage_1` -- chr1,
 
-   `coverage_2` -- chr2 etc.
+   `sample123__coverage_2` -- chr2 etc.
 
 
-
-Sample files:
+Test sample files:
 ------------
-The sample files for running the program are in the folder `testcase/`.
+Test sample files for running the program are in the folder `testcase/`.
 
 
 Additional information:
 ------------
 A Python script (`src/plotCoverage.py`) is provided to produce the plots of the coverage.
 An earlier R script (`src/rscript.R`) is outdated and is not compatible with the current version.
+
 
 Contact:
 --------
