@@ -25,19 +25,22 @@ void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
     cmdss.add(leng);
     //
     ValueArg<string> db_file_arg("d", "db_file", "Sqlite file to write the output", false, "#", "string");
-    //cmdss.add(db_file_arg);
     //
     ValueArg<string> plot_file_arg("p", "plot_file",
             "Name of the file for the data required for the Python script",
             false, "#", "string");
-    //cmdss.add(plot_file_arg);
+    //
+    cmdss.xorAdd( db_file_arg, plot_file_arg );
     //
     ValueArg<string> out("o", "outputfile", "File to print the distripution to",
             true, "#", "string");
     cmdss.add(out);
     //
-    cmdss.xorAdd( db_file_arg, plot_file_arg );
-
+    ValueArg<string> sample_label_arg("t", "sample_label",
+            "sample label for the database",
+            false, "#", "string");
+    cmdss.add(sample_label_arg);
+ 
     try {
         cmdss.parse(argc, argv); //parse arguments
         read_filename = read_file.getValue();
@@ -57,7 +60,16 @@ void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
         else if ( db_file_arg.isSet() )
             // plot_file = '#';
             plot_file = db_file_arg.getValue();
- 
+        //
+
+       if ( sample_label_arg.isSet() )
+            sample_label = sample_label_arg.getValue();
+        else 
+            sample_label = "[" + db_file_arg.getValue() + "]";
+
+        clog << "table base name: " << sample_label << endl;
+
+        //
         db_flag = db_file_arg.isSet();
 
         init();
@@ -133,7 +145,6 @@ void ParseSNP::parseVCF() {
          
     vcfFile.getline(buffer, buffer_size);
 
-
     vector<int> tmp;
     string broken_chromosome = "";
 //    snps.resize(chrs.size(), tmp);
@@ -147,7 +158,7 @@ void ParseSNP::parseVCF() {
     sqlite3pp::transaction * xct;
     bool transaction_flag = false;
     if (db_flag){
-        cout << "REACHED !" << endl;
+        cout << "!" << endl;
         db  = new sqlite3pp::database( plot_file.c_str() ) ;
     } else {
         remove(plot_file.c_str());
@@ -243,7 +254,7 @@ void ParseSNP::parseVCF() {
         cov->clear_arrays();
         process_snp(cov, ref, mapped_file, id);
         if (db_flag){
-            cov->print_cov_db(id, *db);
+            cov->print_cov_db(table_name.c_str(), *db);
         } else { cov->print_cov(id, plotFile); }
 
         cov->estimate( read_length );
@@ -253,6 +264,9 @@ void ParseSNP::parseVCF() {
         vcfFile.getline(buffer, buffer_size);
     }
     clog << "VCF file has been successfully processed" << endl;
+    init_register_table();
+    place_register_record();
+
     xct->commit();
     // xct->rollback(); // sqlite
     vcfFile.close();
@@ -262,7 +276,7 @@ void ParseSNP::parseVCF() {
 }
 
 void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, const size_t &cc){
-    int leftPos= cov->start_pos;
+    int leftPos = cov->start_pos;
     int rightPos =  cov->pos + range;
     int MIN_QUALITY = 0;
     clog << ":" << cc << ":" << leftPos << "-" << rightPos ;
@@ -294,149 +308,65 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
 }
     
 
-void ParseSNP::print() {
-    cout << "printing:" << endl;
-    FILE *file;
-    file = fopen(output.c_str(), "w");
-    if (file == NULL) {
-        cout << "Error in printing: The file or path that you set "
-                << output.c_str()
-                << " is not valid. It can be that there is no disc space available."
-                << endl;
-        exit(0);
-    }
-
-    ifstream vcfFile;
-    vcfFile.open(snpfile.c_str(), ifstream::in);
-    if (!vcfFile.good()) {
-        cout << "Could not open file: " << snpfile.c_str()
-                << endl;
-        exit(0);
-    }
-
-    vcfFile.getline(buffer, buffer_size);
-
-    while (!vcfFile.eof()) {
-        if (buffer[0] != '#') {
-            int count = 0;
-            string chr;
-            int pos = 0;
-            float score = -1;
-            int id = 0;
-            string line;
-            string key;
-            for (size_t i = 0; i < buffer_size && buffer[i] != '\0' && buffer[i] != '\n'; i++) {
-                if (count == 0 && buffer[i] != '\t') {
-                    chr += buffer[i];
-                }
-
-                if (count == 1 && buffer[i - 1] == '\t') {
-
-                    pos = atoi(&buffer[i]);
-                    if (chrs.find(chr.c_str()) != chrs.end()) { //found
-                        id = chrs[chr.c_str()];
-                    } else {
-                        cerr << "Chr not found: " << chr << endl;
-                        exit(0);
-                    }
-                    key = gen_key(id, pos);
-                    if (covs.find(key.c_str()) != covs.end()) {
-                        score = covs[key]->estimate(read_length);
-
-                        if (score > 1 || score < 0) {
-                            score = 0;
-                        }
-                        covs[key]->score = score;
-                    } else {
-                        score = -1; //default
-                    }
-                }
-
-                if (count == 5 && buffer[i - 1] == '\t' && score != -1) { //SNP Quality
-                    float snp_qual = atof(&buffer[i]);
-                    score = score * 255;
-                    score = (score + snp_qual) / 2;
-                    covs[key]->score = score;
-//                    cout << "HIT: " << snp_qual << " " << score << endl;
-                    ostringstream ss;
-                    ss << score;
-                    string s(ss.str());
-                    if (score > 99) {
-                        line += s.substr(0, 5);
-                    } else { //if(score >9){
-                        line += s.substr(0, 4);
-                    }
-                    line += '\t';
-
-                } else if (count != 5 || score == -1) {
-                    line += buffer[i];
-                }
-
-                if (buffer[i] == '\t') {
-                    count++;
-                }
-            }
-            fprintf(file, "%s", line.c_str());
-            fprintf(file, "%c", '\n');
-            line.clear();
-            key.clear();
-        } else {
-            fprintf(file, "%s", buffer);
-            fprintf(file, "%c", '\n');
-        }
-
-        vcfFile.getline(buffer, buffer_size);
-    }
-    vcfFile.close();
-    fclose(file);
-
-    if (plot_file[0] != '#') {
-        file = fopen(plot_file.c_str(), "w");
-        if (file == NULL) {
-            cout << "Error in printing: The file or path that you set "
-                    << plot_file.c_str()
-                    << " is not valid. It can be that there is no disc space available."
-                    << endl;
-            exit(0);
-        }
-
-        for (map<string, Coverage*>::iterator i = covs.begin(); i != covs.end(); i++) {
-    //                 print_coverage(*i, file);
-             }
-                 fclose(file);
-        }
-     cout << "Printing finished" << endl;
-    for (map<string, Coverage*>::iterator i = covs.begin(); i != covs.end(); i++) {
-//        delete [] (*i).second->cov_hi;
-//        delete [] (*i).second->cov_lo;
-        delete (*i).second;
-    }
-}
-
 void ParseSNP::compute(){
 
 }
 
 void ParseSNP::init_sql_table( size_t & id){
-        char sql[256];
-        sprintf(sql, "CREATE TABLE IF NOT EXISTS coverage_%u ("  \
-                           "pos INT PRIMARY KEY     NOT NULL , " \
-                           "totCounts INT, " \
-                           "refCounts INT, " \
-                           "snp_ratio FLOAT, " \
-                           "score FLOAT , " \
-                           "totCov BLOB, " \
-                           "snpCov BLOB, " \
-                           "alnCtr BLOB);", (int) id+1 );
-                          // "tot_cov CHAR(%u) );", (int) id+1, (range*2+1)*4 );
-                          //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
-                          //                            cout << sql[120] << endl;
-        try {
-             clog << "[sqlite3 :] " << sql << " >>> " ;
-             clog << db->execute(sql) << endl;
-        } catch (exception& ex) {
-             cerr << ex.what() << endl;
-        }
-        // clog << "table " << id+1 << " has been created" << endl;
+    table_name = sample_label + "__coverage_" + std::to_string( (int) id+1);
+
+    char sql[256];
+    sprintf(sql, "CREATE TABLE %s ("  \
+                       "pos INT PRIMARY KEY     NOT NULL , " \
+                       "totCounts INT, " \
+                       "refCounts INT, " \
+                       "snp_ratio FLOAT, " \
+                       "score FLOAT , " \
+                       "totCov BLOB, " \
+                       "snpCov BLOB, " \
+                       "alnCtr BLOB);", table_name.c_str() );
+                      // "tot_cov CHAR(%u) );", (int) id+1, (range*2+1)*4 );
+                      //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
+                      //                            cout << sql[120] << endl;
+    try {
+         clog << "[sqlite3 :] " << sql << " >>> " ;
+         clog << db->execute(sql) << endl;
+    } catch (exception& ex) {
+         cerr << ex.what() << endl;
+    }
+    // clog << "table " << id+1 << " has been created" << endl;
+
+}
+
+void ParseSNP::init_register_table( ){
+    const char * sql = "CREATE TABLE IF NOT EXISTS register ( "
+                 "name TEXT PRIMARY KEY, "
+            "vcf_file TEXT, "
+            "mapper TEXT, "
+            "nm INT, "
+            "mq INT, "
+            "nt_q INT, "
+            "wt BOOL, "
+            "notes TEXT ); ";
+   try {
+         clog << "[sqlite3 :] " << sql << " >>> " ;
+         clog << db->execute(sql) << endl;
+    } catch (exception& ex) {
+         cerr << ex.what() << endl;
+    }
+    // clog << "`register` table has been created" << endl;
+}
+
+void ParseSNP::place_register_record(){
+
+    sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, notes) VALUES (:name, :notes) ");
+    cmd.bind(":name", table_name.c_str() );
+    cmd.bind(":notes", "coverage_done");
+
+    try {
+        cmd.execute();
+    } catch (exception& ex) {
+        cerr << ex.what() << endl;
+    }
 
 }
