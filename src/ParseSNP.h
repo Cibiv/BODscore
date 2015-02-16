@@ -35,6 +35,7 @@ void deleteInVector(vector<T*>* deleteme) {
 // ================================================================================
 class ParseSNP: public BasisClass{
 private:
+    bool verbose = false;
     string snpfile;
     string read_filename;
     string reffile;
@@ -66,7 +67,8 @@ private:
 
     void init_register_table();
     void place_register_record();
-
+    void read_register_table();
+    void parseSQLite();
 public:
 	ParseSNP(){
 		read_length=0;
