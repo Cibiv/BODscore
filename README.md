@@ -1,7 +1,9 @@
 Quick start:
 ------------
-    chmod u+x ./install.sh
-    ./install.sh"
+    git clone --recursive https://github.com/Cibiv/BODscore
+
+    cd BODscore
+    bash ./install.sh
 
 Functionality:
 ----------
