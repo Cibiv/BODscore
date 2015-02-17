@@ -25,7 +25,6 @@ else()
     message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 #####################################
-
 SET(CMAKE_BUILD_TYPE DEBUG)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin/vshape-${VSHAPE_VERSION_MAJOR}.${VSHAPE_VERSION_MINOR}.${VSHAPE_VERSION_BUILD}/)
