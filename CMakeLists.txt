@@ -61,6 +61,9 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g3 -O0 -Wall ")
 SET (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}-g3 -O0 -Wall -std=c++0x -pedantic ")
 SET (CMAKE_C_FLAGS_DEBUG "-g3 -O0 -Wall ")
 
+# SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/usr/lib") 
 #######################################
-# install (TARGETS VShape DESTINATION bin)
+# add_executable(${PROJECT_NAME} ${SRC_LIST} solshare_stats.conf)
+
+#                  ARCHIVE DESTINATION lib/static
 # install (FILES sqlite.c DESTINATION include)

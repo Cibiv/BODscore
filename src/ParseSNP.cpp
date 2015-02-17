@@ -166,6 +166,11 @@ void ParseSNP::parseVCF() {
     if (db_flag){
         clog << "writing to database: " <<  plot_file.c_str() << endl;
         db  = new sqlite3pp::database( plot_file.c_str() ) ;
+        init_register_table();
+        place_register_record_begin();
+
+        init_tag_table();
+
     } else {
         remove(plot_file.c_str());
         plotFile = fopen(plot_file.c_str(), "a");
@@ -238,7 +243,7 @@ void ParseSNP::parseVCF() {
                         //  xct->rollback(); // sqlite transaction;
                     }
                     xct = new sqlite3pp::transaction(*db);
-                    init_sql_table(id);
+                    init_sql_table(id, current_chr);
                 }
             };
                       
@@ -268,7 +273,6 @@ void ParseSNP::parseVCF() {
         // vcfFile.getline(buffer, buffer_size);
     }
     clog << "VCF file has been successfully processed" << endl;
-    init_register_table();
     place_register_record();
 
     xct->commit();
@@ -425,13 +429,12 @@ void ParseSNP::parseSQLite() {
     }
     clog << "VCF file has been successfully processed" << endl;
     init_register_table();
-    place_register_record();
 
     xct->commit();
     // xct->rollback(); // sqlite
     vcfFile.close();
     if (db_flag){
-        
+       place_register_record();
     } else  fclose(plotFile);
 }
 ///////////////////////////////////////////////////////////////////////////////////
@@ -469,6 +472,32 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
 
 void ParseSNP::compute(){
 
+}
+
+void ParseSNP::init_sql_table( size_t & id, string & chr_name){
+    table_name = sample_label + "__coverage_" + std::to_string( (int) id+1);
+
+    char sql[256];
+    sprintf(sql, "CREATE TABLE %s ("  \
+                       "pos INT PRIMARY KEY     NOT NULL , " \
+                       "totCounts INT, " \
+                       "refCounts INT, " \
+                       "snp_ratio FLOAT, " \
+                       "score FLOAT , " \
+                       "totCov BLOB, " \
+                       "snpCov BLOB, " \
+                       "alnCtr BLOB);", table_name.c_str() );
+                      // "tot_cov CHAR(%u) );", (int) id+1, (range*2+1)*4 );
+                      //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
+                      //                            cout << sql[120] << endl;
+    try {
+        int exitcode = db->execute(sql);
+        if (verbose){   clog << "[sqlite3:] " << sql << " [returned:]  " << exitcode ;}
+    } catch (exception& ex) {
+         cerr << ex.what() << endl;
+    }
+    // clog << "table " << id+1 << " has been created" << endl;
+    place_tag_table_record(sample_label, table_name, id, chr_name );
 }
 
 void ParseSNP::init_sql_table( size_t & id){
@@ -516,6 +545,21 @@ void ParseSNP::init_register_table( ){
     // clog << "`register` table has been created" << endl;
 }
 
+void ParseSNP::place_register_record_begin(){
+    std::string note =  "coverage analysis started : " + snpfile;
+    sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, notes) VALUES (:name, :notes) ");
+    cmd.bind(":name", sample_label.c_str());
+    cmd.bind(":notes", note.c_str() );
+
+// sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, vcf_file, notes) VALUES (:name, :vcf_file, :notes) ");
+//    cmd.bind(":vcf_file", snpfile.c_str() );
+    try {
+        cmd.execute();
+    } catch (exception& ex) {
+        cerr << ex.what() << endl;
+    }
+
+}
 void ParseSNP::place_register_record(){
     std::string note =  "coverage_done : " + snpfile;
     sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, notes) VALUES (:name, :notes) ");
@@ -531,3 +575,41 @@ void ParseSNP::place_register_record(){
     }
 
 }
+
+void ParseSNP::init_tag_table(){
+
+    char sql[256];
+    sprintf(sql, "CREATE TABLE %s ("  \
+                       "chr_table TEXT PRIMARY KEY     NOT NULL , " \
+                       "chr_name TEXT, " \
+                       "id INT, " \
+                       "max_pos INT, " \
+                       "records INT);", sample_label.c_str() );
+    try {
+        int exitcode = db->execute(sql);
+        if (verbose){   clog << "[sqlite3:] " << sql << " [returned:]  " << exitcode ;}
+    } catch (exception& ex) {
+         cerr << ex.what() << endl;
+    }
+}
+
+void ParseSNP::place_tag_table_record( string & sample_label, string & table_name, size_t & id, string & chr_name ){
+
+    char sql[256];
+    sprintf(sql, "INSERT OR REPLACE INTO %s " \
+        "( chr_table, chr_name, id ) " \
+        "VALUES " \
+        "( :chr_table, :chr_name, :id);", sample_label.c_str() );
+ 
+    sqlite3pp::command cmd( *db, sql);
+    cmd.bind(":chr_table", table_name.c_str());
+    cmd.bind(":chr_name", chr_name.c_str() );
+    cmd.bind(":id", (int) id + 1 );
+
+    try {
+        cmd.execute();
+    } catch (exception& ex) {
+        cerr << ex.what() << endl;
+    }
+}
+
