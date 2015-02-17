@@ -12,3 +12,5 @@ src/plots/**/*
 **/.fuse_hidden*
 src/pyscripts/HL7-out.tab
 src/pyscripts/__pycache__/*
+libs/sqlite-amalgamation-3080802.zip
+sqlite-amalgamation-3080802.zip
