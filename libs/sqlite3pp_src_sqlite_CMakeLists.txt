@@ -1,0 +1,5 @@
+# set project name
+project( sqlite3 )
+
+
+

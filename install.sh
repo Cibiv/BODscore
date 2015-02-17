@@ -1,6 +1,7 @@
 #!/bin/bash
 
 cp libs/sqlite3pp_src_CMakeLists.txt  libs/sqlite3pp/src/CMakeLists.txt
+cp "libs/sqlite3pp_src_sqlite_CMakeLists.txt" "libs/sqlite3pp/src/sqlite-amalgamation-3080802/CMakeLists.txt"
 
 echo "Downloading SQLite3 base..."
 wget  -N -q -A.zip "http://www.sqlite.org/2015/sqlite-amalgamation-3080802.zip" -P "./libs" || exit 1;
