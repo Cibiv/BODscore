@@ -20,3 +20,9 @@ TARGET_LINK_LIBRARIES(vshape BamTools-static)
 TARGET_LINK_LIBRARIES(vshape zlibstatic)
 target_link_libraries(vshape sqlite3pp)
 
+install (TARGETS vshape
+         RUNTIME DESTINATION /usr/bin/
+         LIBRARY DESTINATION /usr/lib/
+         ARCHIVE DESTINATION /usr/lib/)
+
+
