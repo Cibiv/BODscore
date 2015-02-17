@@ -1,17 +1,12 @@
 cmake_minimum_required(VERSION 2.8)
 
-# project(sqlite3pp CXX) 
-
 add_library(sqlite3pp SHARED sqlite3pp.h  sqlite3pp.cpp) #  sqlite3ppext.h sqlite3ppext.cpp)
 
 # link_directories("${CMAKE_CURRENT_SOURCE_DIR}/sqlite-amalgamation-3080802" )
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/sqlite-amalgamation-3080802")
-# add_subdirectory("sqlite-amalgamation-3080802")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 target_link_libraries(sqlite3pp sqlite3)
 
 # target_include_directories (sqlite3pp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-# install(TARGETS sqlite3 DESTINATION lib)
-# install(FILES sqlite3.h DESTINATION include)
