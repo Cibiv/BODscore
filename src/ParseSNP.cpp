@@ -236,7 +236,9 @@ void ParseSNP::parseVCF() {
                 id = chrs[current_chr.c_str()];
                 clog << endl;
                 if (id != mapped_file->GetReferenceID( current_chr) ){
-                    throw std::logic_error("chromosome numbering in the vcf file and bam file do not match!");
+                    cerr << "chromosome : " << current_chr << "[fasta #] " << id << "[bam #]" << mapped_file->GetReferenceID( current_chr)<< endl;
+                    // throw std::logic_error("chromosome numbering in the fasta file and bam file do not match!");
+                    cerr << "chromosome numbering in the fasta file and bam file do not match!" << endl;
                 }
                 if (verbose) {
                     cout << "chromosome # " << id+1 \
