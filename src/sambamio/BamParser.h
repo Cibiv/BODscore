@@ -38,6 +38,7 @@ public:
 	void parseReadFast(uint16_t mappingQv,Alignment*& aln);
 	string get_header();
 	RefVector get_refInfo();
+    int GetReferenceID(const string& refName);
 };
 
 #endif /* PARSER_H_ */
