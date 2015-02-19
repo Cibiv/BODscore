@@ -24,6 +24,7 @@ FastaParser::FastaParser(string file){
 	while(!myfile.eof()){
 		if(buffer[0]=='>'){
 			filepos.push_back(myfile.tellg());
+            contig_name.push_back(string(buffer));
 		}
 		myfile.getline(buffer, buffer_size);
 	}
@@ -38,6 +39,7 @@ string FastaParser::getChr(int id){
 	myfile.open(filename.c_str(), ifstream::in);
 	myfile.seekg(filepos[id]);
 	myfile.getline(buffer, buffer_size);
+
 	string seq;
 	while(!myfile.eof() && buffer[0]!='>'){
 		for(size_t i=0;i<buffer_size && buffer[i]!='\0'&&buffer[i]!='\n'&& buffer[0]!='>';i++){

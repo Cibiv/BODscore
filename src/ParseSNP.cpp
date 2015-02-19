@@ -6,6 +6,8 @@
  */
 
 #include "ParseSNP.h"
+#include <sstream>
+#include <stdexcept>
 
 void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
 
@@ -155,7 +157,6 @@ void ParseSNP::parseVCF() {
     string broken_chromosome = "";
 //    snps.resize(chrs.size(), tmp);
    
-    vector<Coverage> tmp_cov;
     Parser * mapped_file = 0;
     FastaParser * fasta = new FastaParser(reffile);
     string ref;
@@ -175,7 +176,7 @@ void ParseSNP::parseVCF() {
         remove(plot_file.c_str());
         plotFile = fopen(plot_file.c_str(), "a");
         if (plotFile == NULL) {
-            cout << "Error in printing: The file or path that you set "
+            cerr << "Error in printing: The file or path that you set "
 //                << output.c_str()
                 << " is not valid. It can be that there is no disc space available."
                 << endl;
@@ -185,10 +186,12 @@ void ParseSNP::parseVCF() {
    };
 
     if (read_filename.find(".bam") != string::npos) {
-    //      cout << "BAM File" << endl;
-    mapped_file = new BamParser(read_filename);
+        mapped_file = new BamParser(read_filename);
     }
-                            
+    clog << "======================================" << endl;
+    clog << mapped_file->get_header() << endl;
+    clog << "======================================" << endl;
+
 //    clog << "num of chr " << genome.size() << endl;
  //   clog << "first chr size " << genome[0].size() << endl;
     clog << "`range` has been set to: " << range << endl;
@@ -232,12 +235,21 @@ void ParseSNP::parseVCF() {
             if  (chrs[current_chr.c_str()]!= id) { // new chromosome
                 id = chrs[current_chr.c_str()];
                 clog << endl;
-                clog << "chromosome # " << id+1 << endl;
+                if (id != mapped_file->GetReferenceID( current_chr) ){
+                    throw std::logic_error("chromosome numbering in the vcf file and bam file do not match!");
+                }
+                if (verbose) {
+                    cout << "chromosome # " << id+1 \
+                    << "\t[bam:]\t" << mapped_file->GetReferenceID( current_chr ) + 1 \
+                    << "\t" << current_chr.c_str() << " \t " << fasta->contig_name[id] << endl;
+                } else {
+                    clog << "chromosome # " << id+1 << endl;
+                }
                 ref = fasta->getChr(id);
 
                 if (db_flag) {
                     if (transaction_flag){
-                        cout << "commiting" << endl;
+                        clog << "commiting" << endl;
                         xct->commit();
                         delete [] xct;
                         //  xct->rollback(); // sqlite transaction;
@@ -257,10 +269,15 @@ void ParseSNP::parseVCF() {
         }
 
         // process position
-        clog << "\r" << pos+1;
+        if (verbose){
+            // clog << endl;
+            // the info will be printed later in the `process_snp` routine
+        } else {
+            clog << "\r" << setfill(' ') << setw(8) << pos+1;
+        }
      
         cov->pos = pos;
-        cov->start_pos = pos - range;
+        cov->start_pos = pos > range ? pos - range : 0;
         cov->clear_arrays();
         process_snp(cov, ref, mapped_file, id);
         if (db_flag){
@@ -299,150 +316,19 @@ void ParseSNP::read_register_table(){
     }
 }
 void ParseSNP::parseSQLite() {
-    ifstream vcfFile;
-    vcfFile.open(snpfile.c_str(), ifstream::in);
-    if (!vcfFile.good()) {
-        clog << "SNP Parser: could not open file: " << snpfile.c_str()
-                << endl;
-        exit(0);
-    }
-        
-        clog << "reading the VCF file" << endl;
-         
-    vcfFile.getline(buffer, buffer_size);
-
-    vector<int> tmp;
-    string broken_chromosome = "";
-//    snps.resize(chrs.size(), tmp);
-   
-    vector<Coverage> tmp_cov;
-    Parser * mapped_file = 0;
-    FastaParser * fasta = new FastaParser(reffile);
-    string ref;
-    
-    FILE * plotFile = NULL;
-    sqlite3pp::transaction * xct;
-    bool transaction_flag = false;
-    if (db_flag){
-        cout << "writing to database: " <<  plot_file.c_str() << endl;
-        db  = new sqlite3pp::database( plot_file.c_str() ) ;
-    } else {
-        remove(plot_file.c_str());
-        plotFile = fopen(plot_file.c_str(), "a");
-        if (plotFile == NULL) {
-            cout << "Error in printing: The file or path that you set "
-//                << output.c_str()
-                << " is not valid. It can be that there is no disc space available."
-                << endl;
-                ios_base::failure("cannot open output file for writing!");
-                exit(0);
-        }
-   };
-
-    if (read_filename.find(".bam") != string::npos) {
-    //      cout << "BAM File" << endl;
-    mapped_file = new BamParser(read_filename);
-    }
-                            
-//    clog << "num of chr " << genome.size() << endl;
- //   clog << "first chr size " << genome[0].size() << endl;
-    clog << "`range` has been set to: " << range << endl;
-  //  int old_pos  = -100000;
-    size_t id = 100000;
-    // ref = fasta->getChr(id);
-
-    Coverage * cov;
-    cov = new Coverage(range);
-
-    while (!vcfFile.eof()) {
-        if (buffer[0] == '#'){
-            vcfFile.getline(buffer, buffer_size);
-            continue;
-        }
-        int count = 0;
-        string current_chr;
-        int pos = 0;
-        for (size_t i = 0; i < buffer_size && buffer[i] != '\0' && buffer[i] != '\n'; i++) {
-            if (count == 0 && buffer[i] != '\t') {
-                current_chr += buffer[i];
-            }
-
-            if (count == 1 && buffer[i - 1] == '\t') { //start: pos column
-                pos = atoi(&buffer[i]) - 1;
-                break;
-            } // end: pos column
-            if (buffer[i] == '\t') {
-                count++;
-            }
-            // remove db unique_ptr
-        }
-        // process chromosome:
-        // clog << current_chr.c_str() << "  "; 
-
-        if ( chrs.count(current_chr.c_str()) > 0){ //found
-
-            if  (chrs[current_chr.c_str()]!= id) { // new chromosome
-                id = chrs[current_chr.c_str()];
-                clog << "current_chr " << id  << endl;
-                ref = fasta->getChr(id);
-                // old_pos = -100000;
-
-                if (db_flag) {
-                    if (transaction_flag){
-                        cout << "commiting" << endl;
-                        xct->commit();
-                        delete [] xct;
-                        //  xct->rollback(); // sqlite transaction;
-                    }
-                    xct = new sqlite3pp::transaction(*db);
-                    init_sql_table(id);
-                }
-            };
-                      
-        } else if (broken_chromosome.compare(current_chr)!=0){
-            broken_chromosome = current_chr;
-            cerr << endl << "Contig not found: \t" << broken_chromosome << endl;
-            continue;
-        } else {
-            // cerr << "skipping" << endl;
-            continue;
-        }
-
-        // process position
-        // old_pos = pos;
-
-        clog << "chr " <<  id + 1 << " pos " << pos + 1;
-     
-        cov->pos = pos;
-        cov->start_pos = pos - range;
-        cov->clear_arrays();
-        process_snp(cov, ref, mapped_file, id);
-        if (db_flag){
-            cov->print_cov_db(table_name.c_str(), *db);
-        } else { cov->print_cov(id, plotFile); }
-
-        cov->estimate( read_length );
-
-        // finally:       
-
-        vcfFile.getline(buffer, buffer_size);
-    }
-    clog << "VCF file has been successfully processed" << endl;
-    init_register_table();
-
-    xct->commit();
-    // xct->rollback(); // sqlite
-    vcfFile.close();
-    if (db_flag){
-       place_register_record();
-    } else  fclose(plotFile);
-}
+    return; }
 ///////////////////////////////////////////////////////////////////////////////////
 void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, const size_t &cc){
     int leftPos = cov->start_pos;
     int rightPos =  cov->pos + range;
     int MIN_QUALITY = 0;
-    // clog << ":" << cc << ":" << leftPos << "-" << rightPos ;
+    
+    std::ostringstream oss;
+    if (verbose){ 
+        oss << "chr # " << setfill(' ') << setw(2) << cc + 1 << " : " \
+        << setfill(' ') << setw(8) << cov->pos + 1 << " >> " \
+        << setfill(' ') << setw(8) << leftPos + 1<< " ... " \
+        << setfill(' ') << setw(8) << rightPos + 1 << " << coverage: " ; } ;
     // set the region of interest
     if (!mapped_file->SetRegion( (int) cc, leftPos, rightPos)){
     cerr << "cannot jump to position " << cov->pos << " on chr " << cc << endl;
@@ -457,6 +343,7 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
                 // collect alignments of the current SNP neighbourhood into `al_vect`                
                 al_vect.push_back(tmp_aln);
                 aln_count++;
+                if (verbose) { clog << "\r" << oss.str() << setfill(' ') << setw(9) << aln_count ;}
                 tmp_aln = mapped_file->parseRead(MIN_QUALITY);
     }
     for (size_t aa = 0; aa < al_vect.size(); aa++ )    {
@@ -490,13 +377,7 @@ void ParseSNP::init_sql_table( size_t & id, string & chr_name){
                       // "tot_cov CHAR(%u) );", (int) id+1, (range*2+1)*4 );
                       //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
                       //                            cout << sql[120] << endl;
-    try {
-        int exitcode = db->execute(sql);
-        if (verbose){   clog << "[sqlite3:] " << sql << " [returned:]  " << exitcode ;}
-    } catch (exception& ex) {
-         cerr << ex.what() << endl;
-    }
-    // clog << "table " << id+1 << " has been created" << endl;
+    exec_sql_log(sql);
     place_tag_table_record(sample_label, table_name, id, chr_name );
 }
 
@@ -516,14 +397,7 @@ void ParseSNP::init_sql_table( size_t & id){
                       // "tot_cov CHAR(%u) );", (int) id+1, (range*2+1)*4 );
                       //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
                       //                            cout << sql[120] << endl;
-    try {
-        int exitcode = db->execute(sql);
-        if (verbose){   clog << "[sqlite3:] " << sql << " [returned:]  " << exitcode ;}
-    } catch (exception& ex) {
-         cerr << ex.what() << endl;
-    }
-    // clog << "table " << id+1 << " has been created" << endl;
-
+      exec_sql_log(sql);
 }
 
 void ParseSNP::init_register_table( ){
@@ -536,13 +410,7 @@ void ParseSNP::init_register_table( ){
             "nt_q INT, "
             "wt BOOL, "
             "notes TEXT ); ";
-   try {
-        int exitcode = db->execute(sql);
-        if (verbose){   clog << "[sqlite3:] " << sql << " [returned:]  " << exitcode ;}
-   } catch (exception& ex) {
-         cerr << ex.what() << endl;
-   }
-    // clog << "`register` table has been created" << endl;
+   exec_sql_log(sql);
 }
 
 void ParseSNP::place_register_record_begin(){
@@ -582,12 +450,17 @@ void ParseSNP::init_tag_table(){
     sprintf(sql, "CREATE TABLE %s ("  \
                        "chr_table TEXT PRIMARY KEY     NOT NULL , " \
                        "chr_name TEXT, " \
+                       "data_type TEXT, " \
                        "id INT, " \
                        "max_pos INT, " \
                        "records INT);", sample_label.c_str() );
+    exec_sql_log(sql);
+}
+
+void ParseSNP::exec_sql_log(char const * sql){
     try {
         int exitcode = db->execute(sql);
-        if (verbose){   clog << "[sqlite3:] " << sql << " [returned:]  " << exitcode ;}
+        if (verbose){   clog << "[sqlite3:] " << sql << " [returned:]  " << exitcode << endl;}
     } catch (exception& ex) {
          cerr << ex.what() << endl;
     }
@@ -597,12 +470,13 @@ void ParseSNP::place_tag_table_record( string & sample_label, string & table_nam
 
     char sql[256];
     sprintf(sql, "INSERT OR REPLACE INTO %s " \
-        "( chr_table, chr_name, id ) " \
+        "( chr_table, chr_name, data_type, id ) " \
         "VALUES " \
-        "( :chr_table, :chr_name, :id);", sample_label.c_str() );
+        "( :chr_table, :chr_name, :data_type, :id);", sample_label.c_str() );
  
     sqlite3pp::command cmd( *db, sql);
     cmd.bind(":chr_table", table_name.c_str());
+    cmd.bind(":data_type", "coverage");
     cmd.bind(":chr_name", chr_name.c_str() );
     cmd.bind(":id", (int) id + 1 );
 
