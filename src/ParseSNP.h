@@ -53,7 +53,7 @@ private:
 
     vector<vector<Coverage*> > genome;
     map<string,Coverage*> covs;
-    map<string,int>chrs;
+    map<string,int>chromosome_vector;
 
     vector<vector<int> >  snps;
 
