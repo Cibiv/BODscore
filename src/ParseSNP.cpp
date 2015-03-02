@@ -103,10 +103,10 @@ string convert(int number) {
 }
 
 string gen_key(int chr, int pos) {
-    string id = convert(chr+1);
-    id += ":";
-    id += convert(pos);
-    return id;
+    string chr_ref = convert(chr+1);
+    chr_ref += ":";
+    chr_ref += convert(pos);
+    return chr_ref;
 }
 
 void ParseSNP::init() {
@@ -120,7 +120,7 @@ void ParseSNP::init() {
         clog << "reading the reference FASTA file : " << reffile.c_str() << endl;
 
     fastaFile.getline(buffer, buffer_size);
-    int id = 0;
+    int chr_ref = 0;
     while (!fastaFile.eof()) {
         if (buffer[0] == '>') {
             string chr;
@@ -130,13 +130,14 @@ void ParseSNP::init() {
                             && buffer[i] != ' '; i++) {
                 chr += buffer[i];
             }
-            chrs[chr.c_str()] = id;
-            id++;
+            chromosome_vector[chr.c_str()] = chr_ref; // fill in a mapping : chromosome name [char] -> chr_ref [size_t]
+            chr_ref++;
         }
         fastaFile.getline(buffer, buffer_size);
     }
-    clog << "In reference, " << chrs.size() << " contigs have been detected." << endl;
+    clog << "In reference, " << chromosome_vector.size() << " contigs have been detected." << endl;
     fastaFile.close();
+//    std::sort( chromosome_vector.begin(), chromosome_vector.end());
     // read_register_table();
 }
 
@@ -155,7 +156,7 @@ void ParseSNP::parseVCF() {
 
     vector<int> tmp;
     string broken_chromosome = "";
-//    snps.resize(chrs.size(), tmp);
+//    snps.resize(chromosome_vector.size(), tmp);
    
     Parser * mapped_file = 0;
     FastaParser * fasta = new FastaParser(reffile);
@@ -195,9 +196,9 @@ void ParseSNP::parseVCF() {
 //    clog << "num of chr " << genome.size() << endl;
  //   clog << "first chr size " << genome[0].size() << endl;
     clog << "`range` has been set to: " << range << endl;
-    size_t id = 100000;
+    size_t chr_ref = 100000;
     int pos = 0;
-    // ref = fasta->getChr(id);
+    // ref = fasta->getChr(chr_ref);
 
     Coverage * cov;
     cov = new Coverage(range);
@@ -209,45 +210,46 @@ void ParseSNP::parseVCF() {
         if (buffer[0] == '#'){
             continue;
         }
-        int count = 0;
+        int field_count = 0;
         string current_chr;
         // read vcf file:
         // `i` -- runs for symbols
-        // `count` -- runs for fields
-        for (size_t i = 0; count< 2 && i < buffer_size && buffer[i] != '\0' && buffer[i] != '\n'; i++) {
-            if (count == 0 && buffer[i] != '\t') {
+        // `field_count` -- runs for fields
+        for (size_t i = 0; field_count< 2 && i < buffer_size && buffer[i] != '\0' && buffer[i] != '\n'; i++) {
+            if (field_count == 0 && buffer[i] != '\t') {
                 current_chr += buffer[i];
             }
 
-            if (count == 1 && buffer[i - 1] == '\t') { //start: pos column
+            if (field_count == 1 && buffer[i - 1] == '\t') { //start: pos column
                 pos = atoi(&buffer[i]) - 1;
                 break;
             } // end: pos column
             if (buffer[i] == '\t') {
-                count++;
+                field_count++;
             }
         }
         // process chromosome:
         // clog << current_chr.c_str() << "  "; 
+//        int
 
-        if ( chrs.count(current_chr.c_str()) > 0){ //found
+        if ( chromosome_vector.count(current_chr.c_str()) > 0){ //found
 
-            if  (chrs[current_chr.c_str()]!= id) { // new chromosome
-                id = chrs[current_chr.c_str()];
+            if  (chromosome_vector[current_chr.c_str()] != chr_ref) { // new chromosome
+                chr_ref = chromosome_vector[current_chr.c_str()];
                 clog << endl;
-                if (id != mapped_file->GetReferenceID( current_chr) ){
-                    cerr << "chromosome : " << current_chr << "[fasta #] " << id << "[bam #]" << mapped_file->GetReferenceID( current_chr)<< endl;
+                if (chr_ref != mapped_file->GetReferenceID( current_chr) ){
+                    cerr << "chromosome : " << current_chr << "[fasta #] " << chr_ref << "[bam #]" << mapped_file->GetReferenceID( current_chr)<< endl;
                     // throw std::logic_error("chromosome numbering in the fasta file and bam file do not match!");
                     cerr << "chromosome numbering in the fasta file and bam file do not match!" << endl;
                 }
                 if (verbose) {
-                    cout << "chromosome # " << id+1 \
+                    cout << "chromosome # " << chr_ref+1 \
                     << "\t[bam:]\t" << mapped_file->GetReferenceID( current_chr ) + 1 \
-                    << "\t" << current_chr.c_str() << " \t " << fasta->contig_name[id] << endl;
+                    << "\t" << current_chr.c_str() << " \t " << fasta->contig_name[chr_ref] << endl;
                 } else {
-                    clog << "chromosome # " << id+1 << endl;
+                    clog << "chromosome # " << chr_ref+1 << endl;
                 }
-                ref = fasta->getChr(id);
+                ref = fasta->getChr(chr_ref);
 
                 if (db_flag) {
                     if (transaction_flag){
@@ -257,7 +259,7 @@ void ParseSNP::parseVCF() {
                         //  xct->rollback(); // sqlite transaction;
                     }
                     xct = new sqlite3pp::transaction(*db);
-                    init_sql_table(id, current_chr);
+                    init_sql_table(chr_ref, current_chr);
                 }
             };
                       
@@ -281,10 +283,10 @@ void ParseSNP::parseVCF() {
         cov->pos = pos;
         cov->start_pos = pos > range ? pos - range : 0;
         cov->clear_arrays();
-        process_snp(cov, ref, mapped_file, id);
+        process_snp(cov, ref, mapped_file, chr_ref);
         if (db_flag){
             cov->print_cov_db(table_name.c_str(), *db);
-        } else { cov->print_cov(id, plotFile); }
+        } else { cov->print_cov(chr_ref, plotFile); }
 
         cov->estimate( read_length );
 
@@ -363,8 +365,8 @@ void ParseSNP::compute(){
 
 }
 
-void ParseSNP::init_sql_table( size_t & id, string & chr_name){
-    table_name = sample_label + "__coverage_" + std::to_string( (int) id+1);
+void ParseSNP::init_sql_table( size_t & chr_id, string & chr_name){
+    table_name = sample_label + "__coverage_" + std::to_string( (int) chr_id + 1);
 
     char sql[256];
     sprintf(sql, "CREATE TABLE %s ("  \
@@ -376,15 +378,15 @@ void ParseSNP::init_sql_table( size_t & id, string & chr_name){
                        "totCov BLOB, " \
                        "snpCov BLOB, " \
                        "alnCtr BLOB);", table_name.c_str() );
-                      // "tot_cov CHAR(%u) );", (int) id+1, (range*2+1)*4 );
+                      // "tot_cov CHAR(%u) );", (int) chr_ref+1, (range*2+1)*4 );
                       //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
                       //                            cout << sql[120] << endl;
     exec_sql_log(sql);
-    place_tag_table_record(sample_label, table_name, id, chr_name );
+    place_tag_table_record(sample_label, table_name, chr_id, chr_name );
 }
 
-void ParseSNP::init_sql_table( size_t & id){
-    table_name = sample_label + "__coverage_" + std::to_string( (int) id+1);
+void ParseSNP::init_sql_table( size_t & chr_id){
+    table_name = sample_label + "__coverage_" + std::to_string( (int) chr_id + 1);
 
     char sql[256];
     sprintf(sql, "CREATE TABLE %s ("  \
@@ -396,7 +398,7 @@ void ParseSNP::init_sql_table( size_t & id){
                        "totCov BLOB, " \
                        "snpCov BLOB, " \
                        "alnCtr BLOB);", table_name.c_str() );
-                      // "tot_cov CHAR(%u) );", (int) id+1, (range*2+1)*4 );
+                      // "tot_cov CHAR(%u) );", (int) chr_ref+1, (range*2+1)*4 );
                       //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
                       //                            cout << sql[120] << endl;
       exec_sql_log(sql);
@@ -453,7 +455,7 @@ void ParseSNP::init_tag_table(){
                        "chr_table TEXT PRIMARY KEY     NOT NULL , " \
                        "chr_name TEXT, " \
                        "data_type TEXT, " \
-                       "id INT, " \
+                       "chr_id INT, " \
                        "max_pos INT, " \
                        "records INT);", sample_label.c_str() );
     exec_sql_log(sql);
@@ -468,19 +470,19 @@ void ParseSNP::exec_sql_log(char const * sql){
     }
 }
 
-void ParseSNP::place_tag_table_record( string & sample_label, string & table_name, size_t & id, string & chr_name ){
+void ParseSNP::place_tag_table_record( string & sample_label, string & table_name, size_t & chr_ref, string & chr_name ){
 
     char sql[256];
     sprintf(sql, "INSERT OR REPLACE INTO %s " \
-        "( chr_table, chr_name, data_type, id ) " \
+        "( chr_table, chr_name, data_type, chr_id ) " \
         "VALUES " \
-        "( :chr_table, :chr_name, :data_type, :id);", sample_label.c_str() );
+        "( :chr_table, :chr_name, :data_type, :chr_id);", sample_label.c_str() );
  
     sqlite3pp::command cmd( *db, sql);
     cmd.bind(":chr_table", table_name.c_str());
     cmd.bind(":data_type", "coverage");
     cmd.bind(":chr_name", chr_name.c_str() );
-    cmd.bind(":id", (int) id + 1 );
+    cmd.bind(":chr_id", (int) chr_ref + 1 );
 
     try {
         cmd.execute();
