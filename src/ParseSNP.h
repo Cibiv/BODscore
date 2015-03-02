@@ -63,6 +63,7 @@ private:
     void print();
     void parseVCF();
     void init();
+    void exec_sql_log(char const * sql);
     void init_sql_table( size_t & id);
     void init_sql_table( size_t & id,  string & chr_name);
 

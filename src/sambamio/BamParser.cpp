@@ -62,3 +62,7 @@ RefVector BamParser::get_refInfo(){
 string BamParser::get_header(){
 	return reader.GetHeaderText();
 }
+
+int BamParser::GetReferenceID(const string& refName){
+    return reader.GetReferenceID( refName );
+}

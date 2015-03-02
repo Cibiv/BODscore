@@ -25,6 +25,8 @@ public:
 
 	FastaParser(string file);
 
+	vector< string> contig_name;
+
 	~FastaParser(){
 		filename.clear();
 		filepos.clear();

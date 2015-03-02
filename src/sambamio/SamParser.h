@@ -43,6 +43,7 @@ public:
 	Alignment * parseRead(uint16_t mappingQv);
 	void parseReadFast(uint16_t mappingQv,Alignment *& align);
     bool SetRegion(const int & RefId, const int & leftPos, const int & rightPos);
-
+    string get_header(){ return string(" ");};
+    int GetReferenceID(const string& refName){ return 0 ;};
 };
 #endif /* SAMPARSER_H_ */
