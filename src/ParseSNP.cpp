@@ -248,12 +248,13 @@ void ParseSNP::parseVCF() {
                 if (chr_ref != chr_bam ){
                     cerr << "chromosome : " << current_chr << "[fasta #] " << chr_ref << "[bam #]" << chr_bam << endl;
                     // throw std::logic_error("chromosome numbering in the fasta file and bam file do not match!");
+                    cerr << "========================= ! ! ! ! ! ! !  ========================" << endl;
                     cerr << "chromosome numbering in the fasta file and bam file do not match!" << endl;
                 }
                 if (verbose) {
                     n_snp = 0;
                     cout << endl;
-                    cout << "contig [vcf#:]\t " << chr_ref + 1 \
+                    cout << "contig [fasta#:]\t " << chr_ref + 1 \
                     << "\t[bam#:]\t" << chr_bam + 1 \
                     << "\t[vcf:]\t" << current_chr.c_str() << "\t[fasta:]\t " << fasta->contig_name[chr_ref] << endl;
                 } else {
@@ -278,7 +279,7 @@ void ParseSNP::parseVCF() {
             cerr << endl << "Contig not found: \t" << broken_chromosome << endl;
             continue;
         } else {
-            if (verbose){ cerr << "\r skipping: " << current_chr << " : " << pos; }
+            if (verbose){ cerr << "\r skipping: " << current_chr << " : " << pos << endl; }
             continue;
         }
 
@@ -350,7 +351,7 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
         << setfill(' ') << setw(8) << leftPos + 1 << " ... " \
         << setfill(' ') << setw(8) << rightPos + 1 ; } ;
     // set the region of interest
-    if (!mapped_file->SetRegion( (int) cc, leftPos, rightPos)){
+    if (!mapped_file->SetRegion( (int) chr_bam, leftPos, rightPos)){
         cerr << "cannot jump to position " << cov->pos << " on chr " << cc << endl;
     }
     
