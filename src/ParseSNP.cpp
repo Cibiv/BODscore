@@ -119,11 +119,11 @@ void ParseSNP::init() {
     ifstream fastaFile;
     fastaFile.open(reffile.c_str(), ifstream::in);
     if (!fastaFile.good()) {
-        cerr << "Fasta Parser: could not open file: " << reffile.c_str() << endl;
+        cerr << "Fasta Parser: could not open file: `" << reffile.c_str() << "`" <<endl;
         exit(0);
     }
 
-        clog << "reading the reference FASTA file : " << reffile.c_str() << endl;
+        clog << "reading the reference FASTA file : `" << reffile.c_str() << "`"<< endl;
 
     fastaFile.getline(buffer, buffer_size);
     int chr_ref = 0;
@@ -237,13 +237,13 @@ void ParseSNP::parseVCF() {
         }
         // process chromosome:
         // clog << current_chr.c_str() << "  "; 
-        int chr_bam = -1;
+        size_t chr_bam = 0;
 
         if ( chromosome_vector.count(current_chr.c_str()) > 0){ //found
 
             if  (chromosome_vector[current_chr.c_str()] != chr_ref) { // new chromosome
                 chr_ref = chromosome_vector[current_chr.c_str()];
-                clog << endl;
+                clog << endl; // "; getting next bam chromosome..." << endl;
                 chr_bam = mapped_file->GetReferenceID( current_chr);
                 if (chr_ref != chr_bam ){
                     cerr << "chromosome : " << current_chr << "[fasta #] " << chr_ref << "[bam #]" << chr_bam << endl;
@@ -346,7 +346,7 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
         << "(#" <<  setfill(' ') << setw(4) <<  n_snp  << ") " 
         << setfill(' ') << setw(8) << cov->pos + 1 << " >> " \
         << setfill(' ') << setw(8) << leftPos + 1 << " ... " \
-        << setfill(' ') << setw(8) << rightPos + 1 << " << coverage: " ; } ;
+        << setfill(' ') << setw(8) << rightPos + 1 ; } ;
     // set the region of interest
     // int chr_bam = mapped_file->GetReferenceID( current_chr);
     if (!mapped_file->SetRegion( (int) chr_bam, leftPos, rightPos)){
@@ -362,14 +362,14 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
                 // collect alignments of the current SNP neighbourhood into `al_vect`                
                 al_vect.push_back(tmp_aln);
                // aln_count++;
-               // if (verbose) { clog << "\r" << oss.str() << setfill(' ') << setw(9) << aln_count ;}
+                if (verbose) { clog << "\r" << oss.str() << "<< aln. count:"<< setfill(' ') << setw(9) << aln_count ;}
                 tmp_aln = mapped_file->parseRead(MIN_QUALITY);
     }
     for (size_t aa = 0; aa < al_vect.size(); aa++ )    {
         al_vect[aa]->processAlignment(ref); // a huge chunk has been factored out to the `processAlignment` method
         if (al_vect[aa]->getIdentity() >= 0.90) {
              cov->compute_cov(al_vect[aa]); 
-            if (verbose) { clog << "\r" << oss.str() << setfill(' ') << setw(9) << aa ;}
+            if (verbose) { clog << "\r" << oss.str() <<" <<  coverage:  " << setfill(' ') << setw(9) << aa ;}
         // } else { clog << " low identity! " ;
         }
     }
