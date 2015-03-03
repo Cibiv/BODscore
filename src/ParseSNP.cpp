@@ -252,8 +252,8 @@ void ParseSNP::parseVCF() {
                 if (verbose) {
                     n_snp = 0;
                     cout << "chromosome # " << chr_ref+1 \
-                    << "\t[bam:]\t" << mapped_file->GetReferenceID( current_chr ) + 1 \
-                    << "\t" << current_chr.c_str() << " \t " << fasta->contig_name[chr_ref] << endl;
+                    << "\t[bam#:]\t" << mapped_file->GetReferenceID( current_chr ) + 1 \
+                    << "\t[vcf:]\t" << current_chr.c_str() << "\t[fasta:]\t " << fasta->contig_name[chr_ref] << endl;
                 } else {
                     clog << "chromosome # " << chr_ref+1 << endl;
                 }
@@ -305,7 +305,7 @@ void ParseSNP::parseVCF() {
         // finally:       
         // vcfFile.getline(buffer, buffer_size);
     }
-    clog << "VCF file has been successfully processed" << endl;
+    clog << "VCF file `" << snpfile.c_str() << "` has been successfully processed" << endl;
     place_register_record();
 
     xct->commit();
@@ -359,14 +359,15 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
     while(!tmp_aln->getSequence().first.empty()) {
                 // collect alignments of the current SNP neighbourhood into `al_vect`                
                 al_vect.push_back(tmp_aln);
-                aln_count++;
-                if (verbose) { clog << "\r" << oss.str() << setfill(' ') << setw(9) << aln_count ;}
+               // aln_count++;
+               // if (verbose) { clog << "\r" << oss.str() << setfill(' ') << setw(9) << aln_count ;}
                 tmp_aln = mapped_file->parseRead(MIN_QUALITY);
     }
     for (size_t aa = 0; aa < al_vect.size(); aa++ )    {
         al_vect[aa]->processAlignment(ref); // a huge chunk has been factored out to the `processAlignment` method
         if (al_vect[aa]->getIdentity() >= 0.90) {
              cov->compute_cov(al_vect[aa]); 
+            if (verbose) { clog << "\r" << oss.str() << setfill(' ') << setw(9) << aa ;}
         // } else { clog << " low identity! " ;
         }
     }
