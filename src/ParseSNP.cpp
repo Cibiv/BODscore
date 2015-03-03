@@ -361,8 +361,10 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
     while(!tmp_aln->getSequence().first.empty()) {
                 // collect alignments of the current SNP neighbourhood into `al_vect`                
                 al_vect.push_back(tmp_aln);
-               // aln_count++;
-                if (verbose) { clog << "\r" << oss.str() << "<< aln. count:"<< setfill(' ') << setw(9) << aln_count ;}
+                if (verbose) {
+                    aln_count++;
+                    clog << "\r" << oss.str() << "<< aln. count:"<< setfill(' ') << setw(9) << aln_count ;
+                    }
                 tmp_aln = mapped_file->parseRead(MIN_QUALITY);
     }
     for (size_t aa = 0; aa < al_vect.size(); aa++ )    {
