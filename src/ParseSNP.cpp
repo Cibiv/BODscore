@@ -237,22 +237,23 @@ void ParseSNP::parseVCF() {
         }
         // process chromosome:
         // clog << current_chr.c_str() << "  "; 
-//        int
+        int chr_bam = -1;
 
         if ( chromosome_vector.count(current_chr.c_str()) > 0){ //found
 
             if  (chromosome_vector[current_chr.c_str()] != chr_ref) { // new chromosome
                 chr_ref = chromosome_vector[current_chr.c_str()];
                 clog << endl;
-                if (chr_ref != mapped_file->GetReferenceID( current_chr) ){
-                    cerr << "chromosome : " << current_chr << "[fasta #] " << chr_ref << "[bam #]" << mapped_file->GetReferenceID( current_chr)<< endl;
+                chr_bam = mapped_file->GetReferenceID( current_chr);
+                if (chr_ref != chr_bam ){
+                    cerr << "chromosome : " << current_chr << "[fasta #] " << chr_ref << "[bam #]" << chr_bam << endl;
                     // throw std::logic_error("chromosome numbering in the fasta file and bam file do not match!");
                     cerr << "chromosome numbering in the fasta file and bam file do not match!" << endl;
                 }
                 if (verbose) {
                     n_snp = 0;
                     cout << "chromosome # " << chr_ref+1 \
-                    << "\t[bam#:]\t" << mapped_file->GetReferenceID( current_chr ) + 1 \
+                    << "\t[bam#:]\t" << chr_bam + 1 \
                     << "\t[vcf:]\t" << current_chr.c_str() << "\t[fasta:]\t " << fasta->contig_name[chr_ref] << endl;
                 } else {
                     clog << "chromosome # " << chr_ref+1 << endl;
@@ -295,7 +296,7 @@ void ParseSNP::parseVCF() {
         cov->pos = pos;
         cov->start_pos = pos > range ? pos - range : 0;
         cov->clear_arrays();
-        process_snp(cov, ref, mapped_file, chr_ref);
+        process_snp(cov, ref, mapped_file, chr_ref, chr_bam);
         if (db_flag){
             cov->print_cov_db(table_name.c_str(), *db);
         } else { cov->print_cov(chr_ref, plotFile); }
@@ -334,7 +335,7 @@ void ParseSNP::read_register_table(){
 void ParseSNP::parseSQLite() {
     return; }
 ///////////////////////////////////////////////////////////////////////////////////
-void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, const size_t &cc){
+void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, const size_t &cc, const size_t & chr_bam){
     int leftPos = cov->start_pos;
     int rightPos =  cov->pos + range;
     int MIN_QUALITY = 0;
@@ -347,7 +348,8 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
         << setfill(' ') << setw(8) << leftPos + 1 << " ... " \
         << setfill(' ') << setw(8) << rightPos + 1 << " << coverage: " ; } ;
     // set the region of interest
-    if (!mapped_file->SetRegion( (int) cc, leftPos, rightPos)){
+    // int chr_bam = mapped_file->GetReferenceID( current_chr);
+    if (!mapped_file->SetRegion( (int) chr_bam, leftPos, rightPos)){
     cerr << "cannot jump to position " << cov->pos << " on chr " << cc << endl;
     }
     
