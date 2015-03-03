@@ -192,7 +192,7 @@ void Coverage::print_cov_db(const char * table_name, sqlite3pp::database & db){
 
 
     char sql[1024];
-    sprintf (sql, "INSERT INTO %s "  \
+    sprintf (sql, "INSERT OR RELACE INTO %s "  \
          "(pos, totCounts, refCounts, snp_ratio, score, totCov, snpCov, alnCtr) " \
          "VALUES (:pos, :totCounts, :refCounts, :snp_ratio, :score, :tot_cov, :snp_cov, :aln_ctr) ", \
           table_name );
