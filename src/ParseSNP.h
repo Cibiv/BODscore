@@ -48,7 +48,9 @@ private:
     sqlite3pp::database * db;
     int read_length;
     int range;
-    
+    int num_test = 0; // for testing purposes: maximal number of snps per contig to process.
+    int n_snp = 0;
+
     string table_name;
 
     vector<vector<Coverage*> > genome;

@@ -19,8 +19,12 @@ help="input sqlite3 database file (.db)")
 parser.add_argument("outFile", nargs='?', type=str, default='',
 help="output file (.csv); for stdout type '-' ")
 
-parser.add_argument("-l", "--rangel", type=int, default="75",
+parser.add_argument("-l", "--rangel", type=int, default= 75,
 help="")
+
+parser.add_argument("-t", "--tag", type=str, default="ABD159_bwa_nm3",
+help="") 
+"HL10_ngm_nm4"
 
 parser.add_argument("-s", "--csvseparator", type=str, default= '\t',
 help="separator for the input file")
@@ -38,6 +42,8 @@ num_lines = int(subprocess.check_output(['wc', '-l', args.inFile]).decode().spli
 print("lines: %u" % num_lines)
 
 import shutil
+
+print("purging the `plots` directory...")
 shutil.rmtree(args.out_dir)
 
 os.mkdir(args.out_dir)
@@ -52,15 +58,18 @@ def ResultIter(cursor, arraysize=5000):
             yield result
 ###############################################################################
             
+
 CHROMOSOMES = [1]
+table_base = args.tag + '__coverage_'
 
 with sqlite3.connect(args.inFile) as conn:
     curs = conn.cursor()
     for cc in CHROMOSOMES:
-        curs.execute("SELECT Count(*) FROM coverage_%u"% cc )
+        chrtable = "%s%u"% (table_base,cc) 
+        curs.execute("SELECT Count(*) FROM " + chrtable)
         nrows = curs.fetchone()[0]
         print('chr %u, number of rows: %u' % (cc, nrows) )
-        curs.execute("select * from %s" % "coverage_%u"% cc )
+        curs.execute("select * from %s" % chrtable )
         for rr in ResultIter(curs):
             # print(rr)
             cs = CoverageSqlite(cc, rr, args)
