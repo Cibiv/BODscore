@@ -45,7 +45,10 @@ void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
     //
     SwitchArg verbose_arg("v", "verbose", "print snp-by-snp progress", false);
     cmdss.add(verbose_arg);
-
+    //
+    ValueArg<int> num_test_arg("b", "break_after", "max number of position per chromosome [test mode]", false, 0, "int");
+    cmdss.add(num_test_arg);
+ 
     try {
         cmdss.parse(argc, argv); //parse arguments
         read_filename = read_file.getValue();
@@ -76,6 +79,9 @@ void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
         clog << "table base name: " << sample_label << endl;
 
         verbose = verbose_arg.getValue();
+        if (verbose){
+            num_test = num_test_arg.getValue();
+            }
         //
         db_flag = db_file_arg.isSet();
 
@@ -198,6 +204,7 @@ void ParseSNP::parseVCF() {
     clog << "`range` has been set to: " << range << endl;
     size_t chr_ref = 100000;
     int pos = 0;
+//    int n_snp = 0;  // <- global
     // ref = fasta->getChr(chr_ref);
 
     Coverage * cov;
@@ -243,6 +250,7 @@ void ParseSNP::parseVCF() {
                     cerr << "chromosome numbering in the fasta file and bam file do not match!" << endl;
                 }
                 if (verbose) {
+                    n_snp = 0;
                     cout << "chromosome # " << chr_ref+1 \
                     << "\t[bam:]\t" << mapped_file->GetReferenceID( current_chr ) + 1 \
                     << "\t" << current_chr.c_str() << " \t " << fasta->contig_name[chr_ref] << endl;
@@ -274,6 +282,10 @@ void ParseSNP::parseVCF() {
 
         // process position
         if (verbose){
+           n_snp ++;
+           if (num_test && (n_snp > num_test)){
+                continue;
+           }
             // clog << endl;
             // the info will be printed later in the `process_snp` routine
         } else {
@@ -330,8 +342,9 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
     std::ostringstream oss;
     if (verbose){ 
         oss << "chr # " << setfill(' ') << setw(2) << cc + 1 << " : " \
+        << "(#" <<  setfill(' ') << setw(4) <<  n_snp  << ") " 
         << setfill(' ') << setw(8) << cov->pos + 1 << " >> " \
-        << setfill(' ') << setw(8) << leftPos + 1<< " ... " \
+        << setfill(' ') << setw(8) << leftPos + 1 << " ... " \
         << setfill(' ') << setw(8) << rightPos + 1 << " << coverage: " ; } ;
     // set the region of interest
     if (!mapped_file->SetRegion( (int) cc, leftPos, rightPos)){
