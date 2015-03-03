@@ -43,7 +43,7 @@ void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
             false, "#", "string");
     cmdss.add(sample_label_arg);
     //
-    SwitchArg verbose_arg("v", "verbose", "print snp-by-snp progress", false);
+    MultiSwitchArg verbose_arg("v", "verbose", "print snp-by-snp progress", 0);
     cmdss.add(verbose_arg);
     //
     ValueArg<int> num_test_arg("b", "break_after", "max number of position per chromosome [test mode]", false, 0, "int");
@@ -252,7 +252,8 @@ void ParseSNP::parseVCF() {
                 }
                 if (verbose) {
                     n_snp = 0;
-                    cout << "chromosome # " << chr_ref+1 \
+                    cout << endl;
+                    cout << "contig [vcf#:]\t " << chr_ref + 1 \
                     << "\t[bam#:]\t" << chr_bam + 1 \
                     << "\t[vcf:]\t" << current_chr.c_str() << "\t[fasta:]\t " << fasta->contig_name[chr_ref] << endl;
                 } else {
@@ -341,16 +342,16 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
     int MIN_QUALITY = 0;
     
     std::ostringstream oss;
-    if (verbose){ 
+    if (verbose){       
+        oss << "\r";
         oss << "chr # " << setfill(' ') << setw(2) << cc + 1 << " : " \
         << "(#" <<  setfill(' ') << setw(4) <<  n_snp  << ") " 
         << setfill(' ') << setw(8) << cov->pos + 1 << " >> " \
         << setfill(' ') << setw(8) << leftPos + 1 << " ... " \
         << setfill(' ') << setw(8) << rightPos + 1 ; } ;
     // set the region of interest
-    // int chr_bam = mapped_file->GetReferenceID( current_chr);
-    if (!mapped_file->SetRegion( (int) chr_bam, leftPos, rightPos)){
-    cerr << "cannot jump to position " << cov->pos << " on chr " << cc << endl;
+    if (!mapped_file->SetRegion( (int) cc, leftPos, rightPos)){
+        cerr << "cannot jump to position " << cov->pos << " on chr " << cc << endl;
     }
     
     Alignment * tmp_aln = mapped_file->parseRead(MIN_QUALITY);
@@ -361,21 +362,27 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
     while(!tmp_aln->getSequence().first.empty()) {
                 // collect alignments of the current SNP neighbourhood into `al_vect`                
                 al_vect.push_back(tmp_aln);
-                if (verbose) {
-                    aln_count++;
-                    clog << "\r" << oss.str() << "<< aln. count:"<< setfill(' ') << setw(9) << aln_count ;
-                    }
                 tmp_aln = mapped_file->parseRead(MIN_QUALITY);
+                if (verbose) {
+                    clog << oss.str() << " << aln. count:"<< setfill(' ') << setw(9) << aln_count ;
+                    aln_count++;
+                    }
+    } 
+    if (verbose){
+         oss << " << aln. count:"<< setfill(' ') << setw(9) << aln_count;
     }
+   // if (verbose > 1){ clog << endl; }
+
     for (size_t aa = 0; aa < al_vect.size(); aa++ )    {
         al_vect[aa]->processAlignment(ref); // a huge chunk has been factored out to the `processAlignment` method
         if (al_vect[aa]->getIdentity() >= 0.90) {
              cov->compute_cov(al_vect[aa]); 
-            if (verbose) { clog << "\r" << oss.str() <<" <<  coverage:  " << setfill(' ') << setw(9) << aa ;}
+             if (verbose) { clog << oss.str() <<" <<  coverage: " << setfill(' ') << setw(9) << aa ;}
         // } else { clog << " low identity! " ;
         }
     }
     // al_vect.clear();
+    if (verbose > 1){ clog << endl; }
 }
     
 
