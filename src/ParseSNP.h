@@ -61,7 +61,7 @@ private:
 
     char * buffer;
     size_t buffer_size;
-    void process_snp(Coverage* cov, string & ref, Parser * mapped_file, const size_t &cc);
+    void process_snp(Coverage* cov, string & ref, Parser * mapped_file, const size_t &cc, const size_t & chr_bam);
     void print();
     void parseVCF();
     void init();
