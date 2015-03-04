@@ -57,7 +57,7 @@ private:
     map<string,Coverage*> covs;
     map<string,int>chromosome_vector;
 
-    vector<vector<int> >  snps;
+    vector<string> exclude_contigs;//    vector<vector<int> >  snps;
 
     char * buffer;
     size_t buffer_size;
