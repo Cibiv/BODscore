@@ -8,6 +8,7 @@
 #include "ParseSNP.h"
 #include <sstream>
 #include <stdexcept>
+#include <unistd.h>     //for using the function usleep
 
 void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
 
@@ -289,7 +290,7 @@ void ParseSNP::parseVCF() {
            if (num_test && (n_snp > num_test)){
                 continue;
            }
-            // clog << endl;
+          //  clog << endl;
             // the info will be printed later in the `process_snp` routine
         } else {
             clog << "\r" << setfill(' ') << setw(8) << pos+1;
@@ -298,7 +299,13 @@ void ParseSNP::parseVCF() {
         cov->pos = pos;
         cov->start_pos = pos > range ? pos - range : 0;
         cov->clear_arrays();
-        process_snp(cov, ref, mapped_file, chr_ref, chr_bam);
+        if (! process_snp(cov, ref, mapped_file, chr_ref, chr_bam) ){
+            if (verbose>1) {
+                throw std::logic_error(" error while processing a snp!!! ");
+            } else {
+                cerr << "  error while processing a snp! skipping... " << endl;
+            }
+        }
         if (db_flag){
             cov->print_cov_db(table_name.c_str(), *db);
         } else { cov->print_cov(chr_ref, plotFile); }
@@ -309,13 +316,12 @@ void ParseSNP::parseVCF() {
         // vcfFile.getline(buffer, buffer_size);
     }
     clog << "VCF file `" << snpfile.c_str() << "` has been successfully processed" << endl;
-    place_register_record();
-
-    xct->commit();
-    // xct->rollback(); // sqlite
     vcfFile.close();
+
     if (db_flag){
-        
+        place_register_record();
+         // xct->rollback(); // sqlite
+        xct->commit();
     } else  fclose(plotFile);
 }
 ///////////////////////////////////////////////////////////////////////////////////
@@ -337,13 +343,15 @@ void ParseSNP::read_register_table(){
 void ParseSNP::parseSQLite() {
     return; }
 ///////////////////////////////////////////////////////////////////////////////////
-void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, const size_t &cc, const size_t & chr_bam){
+bool ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, const size_t &cc, const size_t & chr_bam){
     int leftPos = cov->start_pos;
     int rightPos =  cov->pos + range;
-    int MIN_QUALITY = 0;
+    int MIN_QUALITY = 20;
+    int MIN_LENGTH = 20;
     
     std::ostringstream oss;
     if (verbose){       
+        clog << "                                                                                                                            ";
         oss << "\r";
         oss << "chr # " << setfill(' ') << setw(2) << cc + 1 << " : " \
         << "(#" <<  setfill(' ') << setw(4) <<  n_snp  << ") " 
@@ -351,8 +359,8 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
         << setfill(' ') << setw(8) << leftPos + 1 << " ... " \
         << setfill(' ') << setw(8) << rightPos + 1 ; } ;
     // set the region of interest
-    if (!mapped_file->SetRegion( (int) chr_bam, leftPos, rightPos)){
-        cerr << "cannot jump to position " << cov->pos << " on chr " << cc << endl;
+    if (!mapped_file->SetRegion( (int) cc, leftPos, rightPos)){
+        cerr << endl << "cannot jump to position " << cov->pos << " on chr " << cc << endl;
     }
     
     Alignment * tmp_aln = mapped_file->parseRead(MIN_QUALITY);
@@ -364,26 +372,39 @@ void ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
                 // collect alignments of the current SNP neighbourhood into `al_vect`                
                 al_vect.push_back(tmp_aln);
                 tmp_aln = mapped_file->parseRead(MIN_QUALITY);
-                if (verbose) {
+                if (verbose >1) {
                     clog << oss.str() << " << aln. count:"<< setfill(' ') << setw(9) << aln_count ;
                     aln_count++;
                     }
-    } 
-    if (verbose){
-         oss << " << aln. count:"<< setfill(' ') << setw(9) << aln_count;
     }
-   // if (verbose > 1){ clog << endl; }
 
+    if (verbose > 1){
+         oss << " << aln. count:"<< setfill(' ') << setw(9) << aln_count ; // << "//" << al_vect.size();
+   }
+
+    std::ostringstream sc;
     for (size_t aa = 0; aa < al_vect.size(); aa++ )    {
-        al_vect[aa]->processAlignment(ref); // a huge chunk has been factored out to the `processAlignment` method
-        if (al_vect[aa]->getIdentity() >= 0.90) {
+    al_vect[aa]->processAlignment(ref); // a huge chunk has been factored out to the `processAlignment` method
+        if ( (al_vect[aa]->getIdentity() >= 0.90) && (al_vect[aa]->getOrigLen() > MIN_LENGTH) ) {
              cov->compute_cov(al_vect[aa]); 
-             if (verbose) { clog << oss.str() <<" <<  coverage: " << setfill(' ') << setw(9) << aa ;}
+             if (verbose>1) { 
+                 clog << "\r";
+                 for (size_t jj = range; jj< range+50; jj=jj+3){
+                    clog << setfill(' ') << setw(4) << (int) cov->snp_cov[0][0][jj];
+//                    usleep(2000);
+                 }
+             }
+             if (verbose == 1) { clog << oss.str() <<" <<  coverage: " << setfill(' ') << setw(9) << aa ;}
         // } else { clog << " low identity! " ;
         }
     }
     // al_vect.clear();
-    if (verbose > 1){ clog << endl; }
+  if (verbose > 0){
+    if (( al_vect.size() ) && (al_vect[0]->getRefID() != chr_bam) ){ 
+       cerr << "| wrong aln ref id: " << al_vect[0]->getRefID() << ", chr_bam: " << chr_bam; 
+    }
+  }
+    return true;
 }
     
 

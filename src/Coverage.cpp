@@ -2,6 +2,7 @@
 by Dmytro S Lituiev, 8 Dec 2014;
 based on Fritz Sedlazeck's;
 */
+#define BLOB_TYPE unsigned short int
 
 #include "Coverage.h"
 const int Coverage::ZERO = 0;
@@ -105,7 +106,7 @@ void Coverage::compute_cov(Alignment * aln) {
              tot_cov[hi_lo][fw_rv][jj]++;
              if ( within ){ 
                  snp_cov[snp_hi_lo][fw_rv][jj]++;
-                 }
+             }
              if (aln->getSequence().second[i] != '-') {
                  jj++;
                  if (jj > 2*range){ break; }
@@ -161,17 +162,19 @@ void array_uint16_to_char(char * out_buffer, unsigned short int * arr, size_t le
 void Coverage::print_cov_db(const char * table_name, sqlite3pp::database & db){
                         // clog << "printing ..." << endl;
 //                    cout << "REACHED 1!" << endl;
+
+    size_t nbytes = sizeof(BLOB_TYPE);
                 
     buf_len = range*2 + 1 ; // class int 
-    int buf_tot_len = 4 * buf_len;
+    size_t buf_tot_len = 4 * buf_len;
 
-    char aln_ctr_str[buf_tot_len] ;
+    BLOB_TYPE aln_ctr_str[buf_tot_len] ;
     sprint_subarrays(aln_ctr_str, aln_centres);
 
-    char tot_cov_str[buf_tot_len] ;
+    BLOB_TYPE tot_cov_str[buf_tot_len] ;
     sprint_subarrays(tot_cov_str, tot_cov);
 
-    char snp_cov_str[buf_tot_len] ;
+    BLOB_TYPE snp_cov_str[buf_tot_len] ;
     sprint_subarrays(snp_cov_str, snp_cov);
 
     int altCounts = tot_cov[LO][FW][range] + tot_cov[LO][RV][range];
@@ -203,9 +206,9 @@ void Coverage::print_cov_db(const char * table_name, sqlite3pp::database & db){
     cmd.bind(":refCounts", totCounts - altCounts);
     cmd.bind(":snp_ratio", snp_ratio);
     cmd.bind(":score", score);
-    cmd.bind(":tot_cov", (void const*) tot_cov_str, buf_tot_len );
-    cmd.bind(":snp_cov", (void const*) snp_cov_str, buf_tot_len);
-    cmd.bind(":aln_ctr", (void const*) aln_ctr_str, buf_tot_len);
+    cmd.bind(":tot_cov", (void const*) tot_cov_str, buf_tot_len * nbytes );
+    cmd.bind(":snp_cov", (void const*) snp_cov_str, buf_tot_len * nbytes);
+    cmd.bind(":aln_ctr", (void const*) aln_ctr_str, buf_tot_len * nbytes);
     
     try {
         cmd.execute();
@@ -232,14 +235,14 @@ std::string Coverage::col_names(const char * base){
     std::string out = buf;
 }
 */
-void Coverage::sprint_subarrays( char * buf, int * const  p[2][2] ){
-
-        pbdb = &Coverage::sprint_char_block;
+template<typename TT>
+void Coverage::sprint_subarrays( TT * buf, int * const  p[2][2] ){
 //        pb = &Coverage::print_block;
-        (this->*Coverage::pbdb)(buf            , p[HI][FW]);
-        (this->*Coverage::pbdb)(buf + buf_len  , p[HI][RV]);
-        (this->*Coverage::pbdb)(buf + buf_len*2, p[LO][FW]);
-        (this->*Coverage::pbdb)(buf + buf_len*3, p[LO][RV]);
+        // pbdb_int = &Coverage::sprint_char_block;
+        sprint_char_block(buf            , p[HI][FW]);
+        sprint_char_block(buf + buf_len  , p[HI][RV]);
+        sprint_char_block(buf + buf_len*2, p[LO][FW]);
+        sprint_char_block(buf + buf_len*3, p[LO][RV]);
         
         // std::string my_string( buf, 4 * buf_len );
         // return my_string;
@@ -248,22 +251,23 @@ void Coverage::sprint_subarrays( char * buf, int * const  p[2][2] ){
 
 void Coverage::print_subarrays(FILE *file, int * const  p[2][2] ){
         
-        pb = &Coverage::print_char_block;
-//        pb = &Coverage::print_block;
+//        pb = &Coverage::print_char_block;
+        pb = &Coverage::print_block;
         (this->*Coverage::pb)(file, p[HI][FW]);
         (this->*Coverage::pb)(file, p[HI][RV]);
         (this->*Coverage::pb)(file, p[LO][FW]);
         (this->*Coverage::pb)(file, p[LO][RV]);
      }
 
-void Coverage::sprint_char_block(  char outstr[], const int * var ){
+template<typename TT>
+void Coverage::sprint_char_block(  TT outstr[], const int * var ){
     for (int j = 0; j < 2 * range; j++) {
-        outstr[j] = var[j] + 1; // sprintf(outstr + 1 + j, "%C", var[j]+33);
+        outstr[j] = (TT) var[j] + 1; // sprintf(outstr + 1 + j, "%C", var[j]+33);
     }
     outstr[ 2*range ] = 0;
     return;
 }
-
+/*
 void Coverage::print_char_block(FILE *file, const int * var ){
 //    fprintf(file, "\t");
     char buf[range*2 + 2 ];
@@ -271,7 +275,7 @@ void Coverage::print_char_block(FILE *file, const int * var ){
 //    printf ( "%.*s", range*2,  buf );
     fprintf(file, "%.*s", range*2,  buf );
 }
-
+*/
 void Coverage::print_block(FILE *file, const int * var ){
     fprintf(file, "|\t");
     for (size_t j = 0; j < (size_t) range * 2; j++) {

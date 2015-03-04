@@ -35,21 +35,24 @@ def blockToNpArray(a, sep = '\t'):
     return [ord(s)- int(33) for s in list(a)]
         # return np.array(a.strip(sep).split(sep)).astype(int)
 
-def splitByteIntoNArrays(lineList, N, block_size):
+def splitByteIntoNArrays(lineList, N, block_size, type_ = 'B'):
+    # print("type: " + type_)
     # assert( len(lineList) == (1 + 2*rangel)*N ), 'wrong blob length: %u' % len(lineList)
     " split into N int numpy sub-arrays within list intList"
-    it = struct.iter_unpack('B', lineList)
+    it = struct.iter_unpack(type_, lineList)
     intList = [[] for Null in range(N)]
     for i, temp_char in enumerate(it):
         # print('ind %u\t arr %u' % (i, i//(2*rangel+1)) )
         intList[i // block_size].append(temp_char[0])
     return intList
     
-def quadrupleArrayByte(lineList, rangel, sep = '\t'):
+def quadrupleArrayByte(lineList, rangel, sep = '\t', type_ = 'B'):
     block_size = 1 + 2*rangel
-    assert( len(lineList) == block_size*4 ), 'wrong blob length: %u' % len(lineList)
-    checkControlPoints(lineList, controlPoints(2*rangel))
-    intList = splitByteIntoNArrays(lineList, 4, block_size)
+    if type_ == 'B':
+        assert( len(lineList) == block_size*4 ), 'wrong blob length: %u' % len(lineList)
+        checkControlPoints(lineList, controlPoints(2*rangel))
+        
+    intList = splitByteIntoNArrays(lineList, 4, block_size, type_)
 
     a = np.empty([2,2, rangel*2], dtype=int)
     a[Hi,F,:] = intList[0][:-1]
@@ -137,8 +140,8 @@ class PlotCoverage:
         ax3 = plt.subplot(gs1[-1, :]) # plt.subplot(212)
         self.plot_centres()
         plt.xlabel('position relative to the SNP, '+ \
-        '\nratio: %3.3f, centre mut: %u, centre all %u, score = %3.3f,' % \
-        (self.snp_ratio, self.expCentreMut, self.expCentre, self.score) )
+        '\npos: %u, ratio: %3.3f, centre mut: %u, centre all %u, score = %3.3f,' % \
+        (self.pos, self.snp_ratio, self.expCentreMut, self.expCentre, self.score) )
         plt.ylabel('number of reads')
 
     def plot_scatters(self, field):
@@ -233,9 +236,10 @@ class CoverageSummary( PlotCoverage ):
         return None    
         
     def parseArrays(self,lineList):
-        self.tot_cov = quadrupleArray(lineList, 0, rl, sep)
-        self.aln_centres = quadrupleArray(lineList, 1, rl, sep)
-        self.snp_cov = quadrupleArray(lineList, 2, rl, sep)
+        OFFSET = 0
+        self.tot_cov = quadrupleArray(lineList, 0, rl, sep) - OFFSET
+        self.aln_centres = quadrupleArray(lineList, 1, rl, sep) - OFFSET
+        self.snp_cov = quadrupleArray(lineList, 2, rl, sep) - OFFSET
         ##
         full_range = len(self.snp_cov[Lo][F])
         assert ( full_range == len(self.tot_cov[Hi][F]) )
@@ -249,6 +253,7 @@ class CoverageSqlite( PlotCoverage ):
         global rl, sep, out_dir
         rl = args.rangel
         sep = args.csvseparator
+        self.type_ = args.type
         self.chromosome = chrs
         self.pos = line[0]
         self.score = line[1]
@@ -262,10 +267,13 @@ class CoverageSqlite( PlotCoverage ):
         return None    
         
     def parseArrays(self,lineList):
+        OFFSET = 1
         firstArrInd = 5
-        self.tot_cov =     quadrupleArrayByte(lineList[firstArrInd    ], rl, sep)
-        self.snp_cov =     quadrupleArrayByte(lineList[firstArrInd + 1], rl, sep)
-        self.aln_centres = quadrupleArrayByte(lineList[firstArrInd + 2], rl, sep)
+        # type_ = 'i' # int
+        
+        self.tot_cov =     quadrupleArrayByte(lineList[firstArrInd    ], rl, sep, self.type_) - OFFSET
+        self.snp_cov =     quadrupleArrayByte(lineList[firstArrInd + 1], rl, sep, self.type_) - OFFSET
+        self.aln_centres = quadrupleArrayByte(lineList[firstArrInd + 2], rl, sep, self.type_) - OFFSET
         ##
         full_range = len(self.snp_cov[Lo][F])
         assert ( full_range == len(self.tot_cov[Hi][F]) )

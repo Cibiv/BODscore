@@ -1,5 +1,6 @@
 data/**/*
 bin/**/*
+lib/**/*
 build/**/*
 Debug/**/*
 todo.md
