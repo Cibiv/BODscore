@@ -372,7 +372,7 @@ bool ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
         << setfill(' ') << setw(8) << leftPos + 1 << " ... " \
         << setfill(' ') << setw(8) << rightPos + 1 ; } ;
     // set the region of interest
-    if (!mapped_file->SetRegion( (int) cc, leftPos, rightPos)){
+    if (!mapped_file->SetRegion( (int) chr_bam, leftPos, rightPos)){
         cerr << endl << "cannot jump to position " << cov->pos << " on chr " << cc << endl;
     }
     
