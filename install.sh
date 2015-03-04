@@ -1,6 +1,9 @@
 #!/bin/bash
 
-cp libs/sqlite3pp_src_CMakeLists.txt  libs/sqlite3pp/src/CMakeLists.txt
+cp libs/bamtools_src_CMakeLists.txt libs/bamtools/src/CMakeLists.txt
+
+
+# cp libs/sqlite3pp_src_CMakeLists.txt  libs/sqlite3pp/src/CMakeLists.txt
 
 FLAG_SQLITE_INCLUDED=1;
 

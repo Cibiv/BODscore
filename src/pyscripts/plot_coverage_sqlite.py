@@ -32,6 +32,10 @@ help="separator for the input file")
 parser.add_argument("-o", "--out_dir", type=str, default= './plots',
 help="directory for output")
 
+
+parser.add_argument("-q", "--type", type=str, default= 'H',
+help="blob data type (H-- unsigned short int, i -- int, B -- char)")
+
 args = parser.parse_args()
 ###############################################################################
 rl = args.rangel
@@ -59,7 +63,7 @@ def ResultIter(cursor, arraysize=5000):
 ###############################################################################
             
 
-CHROMOSOMES = [1]
+CHROMOSOMES = [4]
 table_base = args.tag + '__coverage_'
 
 with sqlite3.connect(args.inFile) as conn:
@@ -74,12 +78,12 @@ with sqlite3.connect(args.inFile) as conn:
             # print(rr)
             cs = CoverageSqlite(cc, rr, args)
             cs.plot()
-            cs.print_plot( args.out_dir, 'coverage')
-            plt.close("all")
+            # cs.print_plot( args.out_dir, 'coverage')
+            # plt.close("all")
             cs.plot_scatters('snp_cov')
             # cs.show_plot()
             cs.print_plot( args.out_dir, 'scatters')
-            plt.close("all")
+            # plt.close("all")
         
         
     

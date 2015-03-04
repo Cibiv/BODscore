@@ -44,8 +44,8 @@ add_subdirectory("libs/sqlite3pp/src")
 # target_include_directories( sqlite3pp PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/sqlite-amalgamation-3080802> )
 #######################################
 
-include_directories (libs/bamtools-2.3.0/src)
-add_subdirectory(libs/bamtools-2.3.0)
+include_directories (libs/bamtools/src)
+add_subdirectory(libs/bamtools)
 
 include_directories (libs/zlib-1.2.7)
 add_subdirectory(libs/zlib-1.2.7)
