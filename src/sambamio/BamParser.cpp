@@ -34,14 +34,20 @@ Alignment* BamParser::parseRead(uint16_t mappingQv){
 	BamAlignment* al = new BamAlignment();
 	while(reader.GetNextAlignmentCore(al[0])){
 		if( al->IsMapped() && al->MapQuality >= mappingQv){
-			al->BuildCharData();
-			align->setAlignment(al);
-			return align;
+            if (!al->BuildCharData() ){
+                cerr << "error populating char data: `" << al->GetErrorString().c_str() << "`" << endl;
+                cerr << "name:\t" << al->Name.c_str(); 
+                cerr << "\tref id:\t" << al->RefID; 
+                cerr << "\tposition:\t" << al->Position << endl; 
+                cerr << "query bases:\t" << al->QueryBases.c_str() << endl;
+                cerr << "Aligned Bases:\t" << al->AlignedBases.c_str() << endl;
+            } else     align->setAlignment(al);
+    	    return align;
 		}
 	}
 	return align;
-
 }
+
 void BamParser::parseReadFast(uint16_t mappingQv,Alignment*& align){
 
 //	Alignment *align = new Alignment();

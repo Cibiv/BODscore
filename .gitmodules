@@ -1,3 +1,6 @@
 [submodule "libs/sqlite3pp"]
 	path = libs/sqlite3pp
 	url = https://github.com/DSLituiev/sqlite3pp
+[submodule "libs/bamtools"]
+	path = libs/bamtools
+	url = https://github.com/DSLituiev/bamtools
