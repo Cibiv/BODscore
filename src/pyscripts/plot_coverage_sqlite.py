@@ -22,7 +22,7 @@ help="output file (.csv); for stdout type '-' ")
 parser.add_argument("-l", "--rangel", type=int, default= 75,
 help="")
 
-parser.add_argument("-t", "--tag", type=str, default="ABD159_bwa_nm3",
+parser.add_argument("-t", "--tag", type=str, default="ABD192_bwa_nm3",
 help="") 
 "HL10_ngm_nm4"
 
