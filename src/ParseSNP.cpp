@@ -14,11 +14,11 @@
 
 void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
 
-    CmdLine cmdss("Comp Motiv", ' ', version.c_str());
+    CmdLine cmdss("computes local coverage and a derived BOD quality score", ' ', version.c_str());
     
-    ValueArg<string> read_file("q", "mapped_reads",
+    ValueArg<string> read_filename_arg("q", "mapped_reads",
             "Mapped read file (sam/bam)", true, "#", "string");
-    cmdss.add(read_file);
+    cmdss.add(read_filename_arg);
     //
     ValueArg<string> ref_file_arg("r", "ref_file", "Reference file (fasta)", true, "#", "string");
     cmdss.add(ref_file_arg);
@@ -35,11 +35,7 @@ void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
             "Name of the file for the data required for the Python script",
             false, "#", "string");
     //
-    cmdss.xorAdd( db_file_arg, plot_file_arg );
-    //
-   // ValueArg<string> out("o", "outputfile", "File to print the distripution to",
-   //         true, "#", "string");
-   // cmdss.add(out);
+    cmdss.xorAdd( db_file_arg, plot_file_arg ); // <- whether Sqlite DB or plain text
     //
     ValueArg<string> sample_label_arg("t", "sample_label",
             "sample label for the database",
@@ -57,7 +53,7 @@ void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
  
     try {
         cmdss.parse(argc, argv); //parse arguments
-        read_filename = read_file.getValue();
+        read_filename = read_filename_arg.getValue();
 /*        output = out.getValue();
         if (output[0] == '#') {
             output = read_filename;
@@ -161,6 +157,9 @@ void ParseSNP::init() {
 }
 
 void ParseSNP::parseVCF() {
+    size_t COMMIT_EACH = 1000;
+    bool IMMEDIATE = false;
+
     ifstream vcfFile;
     vcfFile.open(snpfile.c_str(), ifstream::in);
     if (!vcfFile.good()) {
@@ -260,10 +259,7 @@ void ParseSNP::parseVCF() {
                 clog << endl; // "; getting next bam chromosome..." << endl;
                 chr_bam = mapped_file->GetReferenceID( current_chr);
                 if (chr_ref != chr_bam ){
-                    cerr << "chromosome : " << current_chr << "[fasta #] " << chr_ref << "[bam #]" << chr_bam << endl;
-                    // throw std::logic_error("chromosome numbering in the fasta file and bam file do not match!");
-                    cerr << "========================= ! ! ! ! ! ! !  ========================" << endl;
-                    cerr << "chromosome numbering in the fasta file and bam file do not match!" << endl;
+                    cerr << "contig: " << current_chr << "; [fasta#:] " << chr_ref << "; [bam#:] " << chr_bam << ";  mismatch!" << endl;
                 }
                 if (verbose) {
                     n_snp = 0;
@@ -272,18 +268,20 @@ void ParseSNP::parseVCF() {
                     << "\t[bam#:]\t" << chr_bam + 1 \
                     << "\t[vcf:]\t" << current_chr.c_str() << "\t[fasta:]\t " << fasta->contig_name[chr_ref] << endl;
                 } else {
-                    clog << "chromosome # " << chr_ref+1 << endl;
+                    clog << "contig # " << chr_ref+1 << endl;
                 }
                 ref = fasta->getChr(chr_ref);
 
                 if (db_flag) {
                     if (transaction_flag){
-                        clog << "commiting" << endl;
-                        xct->commit();
-                        delete [] xct;
-                        //  xct->rollback(); // sqlite transaction;
+                         clog << "commiting" << endl;
+                         try { xct->commit();}
+                         catch (exception& ex) { cerr << ex.what() << endl;  }
+                         xct = new sqlite3pp::transaction(*db, true, IMMEDIATE);
+                    } else {
+                        xct = new sqlite3pp::transaction(*db, true, IMMEDIATE);
+                        transaction_flag = true;
                     }
-                    xct = new sqlite3pp::transaction(*db);
                     init_sql_table(chr_ref, current_chr);
                 }
            }
@@ -297,9 +295,9 @@ void ParseSNP::parseVCF() {
             continue;
         }
 
+        n_snp ++;
         // process position
         if (verbose){
-           n_snp ++;
            if (num_test && (n_snp > num_test)){
                 continue;
            }
@@ -308,7 +306,7 @@ void ParseSNP::parseVCF() {
         } else {
             clog << "\r" << setfill(' ') << setw(8) << pos+1;
         }
-     
+   
         cov->pos = pos;
         cov->start_pos = pos > range ? pos - range : 0;
         cov->clear_arrays();
@@ -325,6 +323,12 @@ void ParseSNP::parseVCF() {
 
         cov->estimate( read_length );
 
+        if ( !(n_snp % COMMIT_EACH) && n_snp >0 ){
+            clog << " | commiting" << endl;
+            try { xct->commit();}
+            catch (exception& ex) { cerr << ex.what() << endl;  }
+            xct = new sqlite3pp::transaction(*db, true, IMMEDIATE);
+        }
         // finally:       
         // vcfFile.getline(buffer, buffer_size);
     }
@@ -408,10 +412,8 @@ bool ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
                  }
              }
              if (verbose == 1) { clog << oss.str() <<" <<  coverage: " << setfill(' ') << setw(9) << aa ;}
-        // } else { clog << " low identity! " ;
         }
     }
-    // al_vect.clear();
   if (verbose > 0){
     if (( al_vect.size() ) && (al_vect[0]->getRefID() != chr_bam) ){ 
        cerr << "| wrong aln ref id: " << al_vect[0]->getRefID() << ", chr_bam: " << chr_bam; 
@@ -419,7 +421,6 @@ bool ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
   }
     return true;
 }
-    
 
 void ParseSNP::compute(){
 
@@ -438,18 +439,15 @@ void ParseSNP::init_sql_table( size_t & chr_id, string & chr_name){
                        "totCov BLOB, " \
                        "snpCov BLOB, " \
                        "alnCtr BLOB);", table_name.c_str() );
-                      // "tot_cov CHAR(%u) );", (int) chr_ref+1, (range*2+1)*4 );
-                      //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
-                      //                            cout << sql[120] << endl;
     exec_sql_log(sql);
     place_tag_table_record(sample_label, table_name, chr_id, chr_name );
 }
 
 void ParseSNP::init_sql_table( size_t & chr_id){
-    table_name = sample_label + "__coverage_" + std::to_string( (int) chr_id + 1);
+   table_name = sample_label + "__coverage_" + std::to_string( (int) chr_id + 1);
 
-    char sql[256];
-    sprintf(sql, "CREATE TABLE %s ("  \
+   char sql[256];
+   sprintf(sql, "CREATE TABLE %s ("  \
                        "pos INT PRIMARY KEY     NOT NULL , " \
                        "totCounts INT, " \
                        "refCounts INT, " \
@@ -458,10 +456,7 @@ void ParseSNP::init_sql_table( size_t & chr_id){
                        "totCov BLOB, " \
                        "snpCov BLOB, " \
                        "alnCtr BLOB);", table_name.c_str() );
-                      // "tot_cov CHAR(%u) );", (int) chr_ref+1, (range*2+1)*4 );
-                      //    ", cov_hi    CHAR(50)" ", cov_lo    CHAR(50)"
-                      //                            cout << sql[120] << endl;
-      exec_sql_log(sql);
+   exec_sql_log(sql);
 }
 
 void ParseSNP::init_register_table( ){
@@ -474,13 +469,17 @@ void ParseSNP::init_register_table( ){
             "nt_q INT, "
             "wt BOOL, "
             "notes TEXT ); ";
+            // "bam_file TEXT, "
    exec_sql_log(sql);
 }
 
 void ParseSNP::place_register_record_begin(){
     std::string note =  "coverage analysis started : " + snpfile;
-    sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, notes) VALUES (:name, :notes) ");
+    sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, vcf_file, notes) VALUES (:name, :vcf_file, :notes) ");
+    // sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, vcf_file,bam_file, notes) VALUES (:name, :vcf_file, :bam_file, :notes) ");
     cmd.bind(":name", sample_label.c_str());
+    cmd.bind(":vcf_file", snpfile.c_str());
+    // cmd.bind(":bam_file", read_filename.c_str());
     cmd.bind(":notes", note.c_str() );
 
 // sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, vcf_file, notes) VALUES (:name, :vcf_file, :notes) ");
