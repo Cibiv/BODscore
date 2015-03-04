@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <unistd.h>     //for using the function usleep
 
+#define NA 18446744073709551615
+
 void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
 
     CmdLine cmdss("Comp Motiv", ' ', version.c_str());
@@ -43,6 +45,9 @@ void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
             "sample label for the database",
             false, "#", "string");
     cmdss.add(sample_label_arg);
+    //
+    MultiArg<string> exclude_contigs_arg("x", "exclude", "exclude contigs from analysis", false, "string");
+    cmdss.add(exclude_contigs_arg);
     //
     MultiSwitchArg verbose_arg("v", "verbose", "print snp-by-snp progress", 0);
     cmdss.add(verbose_arg);
@@ -78,6 +83,8 @@ void ParseSNP::parse_cmd_line(int argc, char *argv[]) {
             sample_label = "[" + db_file_arg.getValue() + "]";
 
         clog << "table base name: " << sample_label << endl;
+
+        exclude_contigs = exclude_contigs_arg.getValue();
 
         verbose = verbose_arg.getValue();
         if (verbose){
@@ -117,6 +124,7 @@ string gen_key(int chr, int pos) {
 }
 
 void ParseSNP::init() {
+    // Process Fasta File  ================================================
     ifstream fastaFile;
     fastaFile.open(reffile.c_str(), ifstream::in);
     if (!fastaFile.good()) {
@@ -146,6 +154,10 @@ void ParseSNP::init() {
     fastaFile.close();
 //    std::sort( chromosome_vector.begin(), chromosome_vector.end());
     // read_register_table();
+    
+   for (std::vector<string>::iterator it = exclude_contigs.begin(); it != exclude_contigs.end(); ++it){
+          if (chromosome_vector.erase( *it ) )    clog << endl << "Excluded contig: \t" << *it << endl;
+    }
 }
 
 void ParseSNP::parseVCF() {
@@ -203,7 +215,9 @@ void ParseSNP::parseVCF() {
 //    clog << "num of chr " << genome.size() << endl;
  //   clog << "first chr size " << genome[0].size() << endl;
     clog << "`range` has been set to: " << range << endl;
-    size_t chr_ref = 100000;
+    size_t chr_bam = 0;
+    size_t temp_chr_ref = NA;
+    size_t chr_ref = NA; // 100000;
     int pos = 0;
 //    int n_snp = 0;  // <- global
     // ref = fasta->getChr(chr_ref);
@@ -238,11 +252,10 @@ void ParseSNP::parseVCF() {
         }
         // process chromosome:
         // clog << current_chr.c_str() << "  "; 
-        size_t chr_bam = 0;
-
         if ( chromosome_vector.count(current_chr.c_str()) > 0){ //found
 
-            if  (chromosome_vector[current_chr.c_str()] != chr_ref) { // new chromosome
+            temp_chr_ref = chromosome_vector[current_chr.c_str()];
+            if  (temp_chr_ref != chr_ref) { // new chromosome
                 chr_ref = chromosome_vector[current_chr.c_str()];
                 clog << endl; // "; getting next bam chromosome..." << endl;
                 chr_bam = mapped_file->GetReferenceID( current_chr);
@@ -273,14 +286,14 @@ void ParseSNP::parseVCF() {
                     xct = new sqlite3pp::transaction(*db);
                     init_sql_table(chr_ref, current_chr);
                 }
-            };
-                      
+           }
+             
         } else if (broken_chromosome.compare(current_chr)!=0){
             broken_chromosome = current_chr;
             cerr << endl << "Contig not found: \t" << broken_chromosome << endl;
             continue;
         } else {
-            if (verbose){ cerr << "\r skipping: " << current_chr << " : " << pos << endl; }
+            if (verbose){ cerr << "\r skipping: " << current_chr << " : " << pos ; }
             continue;
         }
 
