@@ -157,7 +157,7 @@ void ParseSNP::init() {
 }
 
 void ParseSNP::parseVCF() {
-    size_t COMMIT_EACH = 1000;
+    size_t COMMIT_EACH = 200;
     bool IMMEDIATE = false;
 
     ifstream vcfFile;
@@ -463,23 +463,22 @@ void ParseSNP::init_register_table( ){
     const char * sql = "CREATE TABLE IF NOT EXISTS register ( "
                  "name TEXT PRIMARY KEY, "
             "vcf_file TEXT, "
+            "bam_file TEXT, "
             "mapper TEXT, "
             "nm INT, "
             "mq INT, "
             "nt_q INT, "
             "wt BOOL, "
             "notes TEXT ); ";
-            // "bam_file TEXT, "
    exec_sql_log(sql);
 }
 
 void ParseSNP::place_register_record_begin(){
     std::string note =  "coverage analysis started : " + snpfile;
-    sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, vcf_file, notes) VALUES (:name, :vcf_file, :notes) ");
-    // sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, vcf_file,bam_file, notes) VALUES (:name, :vcf_file, :bam_file, :notes) ");
+    sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, vcf_file,bam_file, notes) VALUES (:name, :vcf_file, :bam_file, :notes) ");
     cmd.bind(":name", sample_label.c_str());
     cmd.bind(":vcf_file", snpfile.c_str());
-    // cmd.bind(":bam_file", read_filename.c_str());
+    cmd.bind(":bam_file", read_filename.c_str());
     cmd.bind(":notes", note.c_str() );
 
 // sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, vcf_file, notes) VALUES (:name, :vcf_file, :notes) ");
@@ -493,18 +492,29 @@ void ParseSNP::place_register_record_begin(){
 }
 void ParseSNP::place_register_record(){
     std::string note =  "coverage_done : " + snpfile;
-    sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, notes) VALUES (:name, :notes) ");
+  {
+     sqlite3pp::command cmd( *db, "INSERT OR IGNORE INTO register (name, notes) VALUES (:name, :notes) ");
     cmd.bind(":name", sample_label.c_str());
+    // cmd.bind(":vcf_file", snpfile.c_str() );
     cmd.bind(":notes", note.c_str() );
 
-// sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, vcf_file, notes) VALUES (:name, :vcf_file, :notes) ");
-//    cmd.bind(":vcf_file", snpfile.c_str() );
     try {
         cmd.execute();
     } catch (exception& ex) {
         cerr << ex.what() << endl;
     }
+  }
+  {
+    sqlite3pp::command cmd( *db, "UPDATE register SET notes = (:notes) WHERE name = (:name) " );
+    cmd.bind(":name", sample_label.c_str());
+    cmd.bind(":notes", note.c_str() );
 
+    try {
+        cmd.execute();
+    } catch (exception& ex) {
+        cerr << ex.what() << endl;
+    }
+  }
 }
 
 void ParseSNP::init_tag_table(){
