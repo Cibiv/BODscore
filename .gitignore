@@ -1,4 +1,4 @@
-vcf.db
+*.db
 **/*.db
 data/**/*
 bin/**/*
