@@ -66,6 +66,7 @@ private:
     void sprint_subarrays( TT * buf, int * const  p[2][2] );
 
 public:
+    std::string contig;
     int pos ;
     int start_pos ; 
 //    int end_pos;
@@ -131,6 +132,28 @@ public:
     void print_cov_db( const char * table_name, sqlite3pp::database & db );
     bool within( const int & x );
 
+    void reset(std::string current_chr, int x) //: contig(current_chr), pos(x)
+    {
+        contig = current_chr;
+        pos = x;
+        start_pos = pos > range ? pos - range : 0;
+        clear_arrays();
+    }
+    void reset(int cc, int x)//:  chr(cc), pos(x)
+    {
+        chr = cc;
+        pos = x;
+        start_pos = pos > range ? pos - range : 0;
+        clear_arrays();
+    }
+    void reset(std::string current_chr, int cc, int x) //: contig(current_chr), pos(x)
+    {
+        contig = current_chr;
+        chr = cc;
+        pos = x;
+        start_pos = pos > range ? pos - range : 0;
+        clear_arrays();
+    }
 };
 
 #endif // Coverage_H_
