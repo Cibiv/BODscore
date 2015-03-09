@@ -9,7 +9,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import struct
-
+###############################################################################
+def ResultIter(cursor, arraysize=5000):
+    'An iterator that uses fetchmany to keep memory usage down'
+    while True:
+        results = cursor.fetchmany(arraysize)
+        if not results:
+            break
+        for result in results:
+            yield result
+###############################################################################
 def printBlob(R):
     i = 0
     for c in range(len(R) ):
@@ -83,7 +92,7 @@ Lo = 0
 Hi = 1
 F = 0
 R = 1
-
+###############################################################################
 class PlotCoverage:
     def calcCentres(self):
         self.expCentreMut = np.sum(self.x * sum(self.aln_centres[Lo,:,:]) )/ np.sum(sum(self.aln_centres[Lo,:,:]))
@@ -95,20 +104,30 @@ class PlotCoverage:
         
     def calcCountsRatio(self):
         self.totCounts = (self.tot_cov[Lo][F][rl]+ self.tot_cov[Lo][R][rl] + self.tot_cov[Hi][F][rl]+ self.tot_cov[Hi][R][rl])
-        self.snp_ratio = (self.tot_cov[Lo][F][rl] + self.tot_cov[Lo][R][rl])/ \
-        (self.tot_cov[Lo][F][rl]+ self.tot_cov[Lo][R][rl] + self.tot_cov[Hi][F][rl]+ self.tot_cov[Hi][R][rl])
+        self.snp_ratio = (self.tot_cov[Lo][F][rl] + self.tot_cov[Lo][R][rl]) / self.totCounts 
         
     def plot_cov(self, field ):
-        plt.plot(self.x, self.__dict__[field][Hi][F] + self.__dict__[field][Lo][F],  'b.-')
+        li = [0]*3
+        yl = np.ceil( (max(np.abs(self.__dict__[field].ravel() ) ) + 1)*10 ) / 10
+        plt.plot([-rl, rl], [0,0], 'k-', linewidth = 0.5)
+        plt.plot([0,0], [-yl, yl], 'k--', linewidth = 0.5)
+        
+        li[0], = plt.plot(self.x, self.__dict__[field][Hi][F] + self.__dict__[field][Lo][F],  'b.-', label = "total")
         plt.plot(self.x, -(self.__dict__[field][Hi][R] + self.__dict__[field][Lo][R]),  'b.-')
-        plt.plot(self.x, self.__dict__[field][Hi][F], 'g.-')
+        li[1], = plt.plot(self.x, self.__dict__[field][Hi][F], 'g.-', label = "perfect")
         plt.plot(self.x, -self.__dict__[field][Hi][R], 'g.-')
         plt.xlim([-rl, rl]) 
         # plt.title('A tale of 2 subplots')
-        plt.plot(self.x, self.__dict__[field][Lo][F], 'r.-')
+        li[2], = plt.plot(self.x, self.__dict__[field][Lo][F], 'r.-', label = "mismatch")
         plt.plot(self.x, -self.__dict__[field][Lo][R], 'r.-')
         
+        plt.ylim([-yl, yl]) 
+        
+        plt.legend(handles = li, loc='upper right')
+        
     def plot_centres(self):
+        yl = max(np.abs(self.aln_centres.ravel() ) ) + 1
+        plt.plot([0,0], [-yl, yl], 'k--', linewidth = 0.5)
         markerline, stemlines, baseline = plt.stem(self.x, self.aln_centres[Hi][F], 'g.-')
         plt.setp(markerline, 'markerfacecolor', 'g')
         markerline, stemlines, baseline = plt.stem(self.x, -self.aln_centres[Hi][R], 'g.-')
@@ -118,6 +137,8 @@ class PlotCoverage:
         markerline, stemlines, baseline = plt.stem(self.x, -self.aln_centres[Lo][R], 'r.-')
         plt.setp(markerline, 'markerfacecolor', 'r')
         plt.xlim([-rl, rl]) 
+        
+        plt.ylim([-yl, yl]) 
         
     def plot(self):
         self.fig = plt.figure(figsize=(8,10))
@@ -140,8 +161,10 @@ class PlotCoverage:
         ax3 = plt.subplot(gs1[-1, :]) # plt.subplot(212)
         self.plot_centres()
         plt.xlabel('position relative to the SNP, '+ \
-        '\npos: %u, ratio: %3.3f, centre mut: %u, centre all %u, score = %3.3f,' % \
-        (self.pos, self.snp_ratio, self.expCentreMut, self.expCentre, self.score) )
+        '\nchr: %u, pos: %u, ratio: %3.2f (%u/%u), centre mut: %u, centre all %u, score = %3.2f' % \
+        (self.chromosome, self.pos, self.snp_ratio, 
+         round(self.snp_ratio*self.totCounts), self.totCounts,
+         self.expCentreMut, self.expCentre, self.score) )
         plt.ylabel('number of reads')
 
     def plot_scatters(self, field):
@@ -196,7 +219,22 @@ class PlotCoverage:
     def show_plot(self):
         plt.show(self.fig)
     
-    def feature_vector(self, field, subrange):
+    def strand_bias(self, field = "snp_cov"):
+        fw = np.empty( (2,) )
+        rv = np.empty( (2,) )
+        # bias = np.empty( (2,) )
+        for hilo in [0,1]:
+            fw[hilo] = sum(self.__dict__[field][hilo][F])
+            rv[hilo] = sum(self.__dict__[field][hilo][R])
+        return bias = (fw - rv) / (fw + rv)
+
+    def eccentricity(self, field = "snp_cov"):
+        for hilo in [0,1]:
+            for fwrv in [0,1]:
+                ecc
+        ecct = ecc[F] * ecc[R]
+    
+    def feature_vector(self, subrange, field = "snp_cov"):
         fv = np.empty(4*2*subrange)
         fv[0:2*subrange] = self.__dict__[field][Hi][F][rl-subrange:rl+subrange]
         fv[2*subrange: 4*subrange] = self.__dict__[field][Hi][R][rl-subrange:rl+subrange]
@@ -215,8 +253,7 @@ class PlotCoverage:
         print( m , end = '\n', file = fid)
         
 ###############################################################################    
-
-class CoverageSummary( PlotCoverage ):
+class CoverageTab( PlotCoverage ):
     
     def __init__( self, line, args ):
         lineList = line.rstrip("\n").split(args.csvseparator) 
@@ -249,16 +286,16 @@ class CoverageSummary( PlotCoverage ):
 
 class CoverageSqlite( PlotCoverage ):
     
-    def __init__( self, chrs, line, args ):
+    def __init__( self, line, args ):
         global rl, sep, out_dir
         rl = args.rangel
         sep = args.csvseparator
         self.type_ = args.type
-        self.chromosome = chrs
-        self.pos = line[0]
-        self.score = line[1]
+        self.chromosome =  line[0]
+        self.pos = line[]1
         self.totCounts = line[2]
         self.snp_ratio = line[4]
+        self.score = line[5]
         
         self.parseArrays(line)
         self.x = np.arange(- rl, rl ).astype(int)

@@ -6,6 +6,7 @@ Created on Tue Dec 16 15:51:09 2014
 """
 
 import subprocess
+import sqlite3
 from ReadCoverage import *
 
 # import pdb
@@ -14,7 +15,7 @@ import argparse
 parser = argparse.ArgumentParser('''
 ''')
 parser.add_argument("inFile",
-help="input file (.csv) with the gene IDs given in the 'geneID' column")
+help="input file (.db)")
 
 parser.add_argument("outFile", nargs='?', type=str, default='',
 help="output file (.csv); for stdout type '-' ")
@@ -25,29 +26,45 @@ help="")
 parser.add_argument("-s", "--csvseparator", type=str, default= '\t',
 help="separator for the input file")
 
+parser.add_argument("-t", "--tag", type=str, default="HL10_ngm_nm4",
+help="") 
+"ABD192_bwa_nm3"
+
 parser.add_argument("-o", "--outFile", type=str, default= 'out.tab',
 help="file for output")
+
+parser.add_argument("-q", "--type", type=str, default= 'H',
+help="blob data type (H-- unsigned short int, i -- int, B -- char)")
 
 args = parser.parse_args()
 ###############################################################################
 global rl
 rl = args.rangel
 subrange = 50;
-# subprocess.call(['wc', '-l', args.inFile])
-num_lines = int(subprocess.check_output(['wc', '-l', args.inFile]).decode().split(' ')[0])
-print("lines: %u" % num_lines)
+CHROMOSOMES = [3]
+table_base = args.tag + '__coverage_'
 
-feature_array = np.zeros((num_lines, 4*2*subrange))
+condition = ""# " WHERE pos = 16473265"
 
-ii = 0   
-# with open('a', 'w') as a, open('b', 'w') as b:
-with open(args.inFile, 'r') as f, open(args.outFile, 'w') as h:
-    # header = next(f)
-    for line in f:
-        cs = CoverageVcf( line, args )
-        # cs.print_range("snp_cov", subrange, h)
-        feature_array[ii , :] = cs.feature_vector("snp_cov" , subrange)
-        ii += 1
+nrows = 0
+with sqlite3.connect(args.inFile) as conn:
+    curs = conn.cursor()
+    for cc in CHROMOSOMES:
+        curs.execute("SELECT Count(*) FROM " + table_base + condition)
+        nrows += curs.fetchone()[0]
+        print('chr %u, number of rows: %u' % (cc, nrows) )
+    
+    feature_array = np.zeros((nrows, 4*2*subrange))
+    ii = 0
+    
+    for cc in CHROMOSOMES:
+        curs.execute("select * from %s" % chrtable + condition)
+        for rr in ResultIter(curs):
+            # print(rr)
+            cs = CoverageSqlite(cc, rr, args)
+            # cs.print_range("snp_cov", subrange, h)
+            feature_array[ii , :] = cs.feature_vector(subrange, "snp_cov")
+            ii += 1
         
 # X = feature_array - np.mean(feature_array, axis = 0)
 from sklearn.decomposition import RandomizedPCA # import sklearn 

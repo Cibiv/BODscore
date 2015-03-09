@@ -66,16 +66,17 @@ private:
     void parseVCF();
     void init();
     void exec_sql_log(char const * sql);
-    void init_sql_table( size_t & id);
-    void init_sql_table( size_t & id,  string & chr_name);
+    void init_sql_table();
 
-    void init_tag_table();
+    void init_contig_table();
     void init_register_table();
     void place_register_record();
     void place_register_record_begin();
     void read_register_table();
-    void place_tag_table_record( string & sample_label, string & table_name, size_t & id, string & chr_name );
+    void place_contig_table_record( string & sample_label, size_t & id, string & chr_name );
     void parseSQLite();
+    void composite_index();
+
 public:
 	ParseSNP(){
 		read_length=0;

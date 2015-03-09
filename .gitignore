@@ -2,8 +2,8 @@
 **/*.db
 data/**/*
 bin/**/*
-lib/**/*
-lib/*
+plots/**/*
+plots/*
 build/**/*
 build/*
 Debug/**/*

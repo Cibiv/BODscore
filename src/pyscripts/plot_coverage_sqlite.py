@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser('''
 ''')
 parser.add_argument("inFile",
 help="input sqlite3 database file (.db)")
+# ../../bin/vshape-1.0.0/vcf.db
 
 parser.add_argument("outFile", nargs='?', type=str, default='',
 help="output file (.csv); for stdout type '-' ")
@@ -22,16 +23,15 @@ help="output file (.csv); for stdout type '-' ")
 parser.add_argument("-l", "--rangel", type=int, default= 75,
 help="")
 
-parser.add_argument("-t", "--tag", type=str, default="ABD192_bwa_nm3",
+parser.add_argument("-t", "--tag", type=str, default="HL10_ngm_nm4",
 help="") 
-"HL10_ngm_nm4"
+"ABD192_bwa_nm3"
 
 parser.add_argument("-s", "--csvseparator", type=str, default= '\t',
 help="separator for the input file")
 
-parser.add_argument("-o", "--out_dir", type=str, default= './plots',
+parser.add_argument("-o", "--out_dir", type=str, default= '../../plots',
 help="directory for output")
-
 
 parser.add_argument("-q", "--type", type=str, default= 'H',
 help="blob data type (H-- unsigned short int, i -- int, B -- char)")
@@ -40,50 +40,44 @@ args = parser.parse_args()
 ###############################################################################
 rl = args.rangel
 
-# subprocess.call(['wc', '-l', args.inFile])
-num_lines = int(subprocess.check_output(['wc', '-l', args.inFile]).decode().split(' ')[0])
+# num_lines = int(subprocess.check_output(['wc', '-l', args.inFile]).decode().split(' ')[0])
+# print("lines: %u" % num_lines)
 
-print("lines: %u" % num_lines)
-
+destination_dir = os.path.join(args.out_dir, args.tag)
 import shutil
 
-print("purging the `plots` directory...")
-shutil.rmtree(args.out_dir)
+purge = False
 
-os.mkdir(args.out_dir)
-###############################################################################
-def ResultIter(cursor, arraysize=5000):
-    'An iterator that uses fetchmany to keep memory usage down'
-    while True:
-        results = cursor.fetchmany(arraysize)
-        if not results:
-            break
-        for result in results:
-            yield result
-###############################################################################
-            
+if purge:
+    print("purging the `plots` directory...")
+    shutil.rmtree(destination_dir, ignore_errors=True)
 
-CHROMOSOMES = [4]
-table_base = args.tag + '__coverage_'
+os.makedirs(destination_dir, exist_ok=True)
+###############################################################################
+
+CHROMOSOMES = ["Chr1"]
+table_base = args.tag + '__coverage'
+
+condition = ""# " WHERE pos = 16473265"
 
 with sqlite3.connect(args.inFile) as conn:
     curs = conn.cursor()
     for cc in CHROMOSOMES:
-        chrtable = "%s%u"% (table_base,cc) 
-        curs.execute("SELECT Count(*) FROM " + chrtable)
+        condition = "WHERE contig == " % cc + condition
+        curs.execute("SELECT Count(*) FROM " + table_base + condition)
         nrows = curs.fetchone()[0]
-        print('chr %u, number of rows: %u' % (cc, nrows) )
-        curs.execute("select * from %s" % chrtable )
+        print('contig: %s, number of rows: %u' % (cc, nrows) )
+        curs.execute("select * from %s" % chrtable + condition)
         for rr in ResultIter(curs):
             # print(rr)
             cs = CoverageSqlite(cc, rr, args)
             cs.plot()
-            # cs.print_plot( args.out_dir, 'coverage')
+            cs.print_plot( destination_dir , 'coverage')
             # plt.close("all")
-            cs.plot_scatters('snp_cov')
+            # cs.plot_scatters('snp_cov')
             # cs.show_plot()
-            cs.print_plot( args.out_dir, 'scatters')
-            # plt.close("all")
+            # cs.print_plot(destination_dir, 'scatters')
+            plt.close("all")
         
         
     
