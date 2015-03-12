@@ -507,7 +507,7 @@ void ParseSNP::place_register_record(){
 void ParseSNP::init_contig_table(){
 
     char sql[256];
-    sprintf(sql, "CREATE TABLE %s_contigs ("  \
+    sprintf(sql, "CREATE TABLE %s__contigs ("  \
                       "chr_name TEXT PRIMARY KEY     NOT NULL , " \
                        "data_type TEXT, " \
                        "chr_id INT, " \
@@ -528,7 +528,7 @@ void ParseSNP::exec_sql_log(char const * sql){
 void ParseSNP::place_contig_table_record( string & sample_label, size_t & chr_ref, string & chr_name ){
 
     char sql[256];
-    sprintf(sql, "INSERT OR REPLACE INTO %s_contigs " \
+    sprintf(sql, "INSERT OR REPLACE INTO %s__contigs " \
         "(chr_name, data_type, chr_id) " \
         //"(chr_name, data_type, chr_id, records ) " 
         "VALUES " \

@@ -161,7 +161,7 @@ class PlotCoverage:
         ax3 = plt.subplot(gs1[-1, :]) # plt.subplot(212)
         self.plot_centres()
         plt.xlabel('position relative to the SNP, '+ \
-        '\nchr: %u, pos: %u, ratio: %3.2f (%u/%u), centre mut: %u, centre all %u, score = %3.2f' % \
+        '\n%s, pos: %u, ratio: %3.2f (%u/%u), centre mut: %u, centre all %u, score = %3.2f' % \
         (self.chromosome, self.pos, self.snp_ratio, 
          round(self.snp_ratio*self.totCounts), self.totCounts,
          self.expCentreMut, self.expCentre, self.score) )
@@ -213,7 +213,7 @@ class PlotCoverage:
         # plt.legend(bbox_to_anchor=(xmin, ymax - 0.1*(ymax -ymin)), bbox_transform=plt.gcf().transFigure)
         
     def print_plot(self, out_dir, name):
-        plt.savefig(os.path.join(out_dir, name + '_%u_%u.eps'% (self.chromosome, self.pos) ) )
+        plt.savefig(os.path.join(out_dir, name + '_%s_%u.eps'% (self.chromosome, self.pos) ) )
         plt.close(self.fig) # 
         
     def show_plot(self):
@@ -226,7 +226,8 @@ class PlotCoverage:
         for hilo in [0,1]:
             fw[hilo] = sum(self.__dict__[field][hilo][F])
             rv[hilo] = sum(self.__dict__[field][hilo][R])
-        return bias = (fw - rv) / (fw + rv)
+        bias = (fw - rv) / (fw + rv)
+        return bias
 
     def eccentricity(self, field = "snp_cov"):
         for hilo in [0,1]:
@@ -256,6 +257,7 @@ class PlotCoverage:
 class CoverageTab( PlotCoverage ):
     
     def __init__( self, line, args ):
+        
         lineList = line.rstrip("\n").split(args.csvseparator) 
         line_begin = lineList[0:3]
         global rl, sep, out_dir
@@ -291,11 +293,11 @@ class CoverageSqlite( PlotCoverage ):
         rl = args.rangel
         sep = args.csvseparator
         self.type_ = args.type
-        self.chromosome =  line[0]
-        self.pos = line[]1
-        self.totCounts = line[2]
-        self.snp_ratio = line[4]
-        self.score = line[5]
+        self.chromosome = line['contig']
+        self.pos = line['pos']
+        self.totCounts = line['totCounts']
+        self.snp_ratio = line['snp_ratio']
+        self.score = line['score']
         
         self.parseArrays(line)
         self.x = np.arange(- rl, rl ).astype(int)
@@ -303,14 +305,12 @@ class CoverageSqlite( PlotCoverage ):
         self.calcCentres()
         return None    
         
-    def parseArrays(self,lineList):
+    def parseArrays(self, lineList):
         OFFSET = 1
-        firstArrInd = 5
-        # type_ = 'i' # int
         
-        self.tot_cov =     quadrupleArrayByte(lineList[firstArrInd    ], rl, sep, self.type_) - OFFSET
-        self.snp_cov =     quadrupleArrayByte(lineList[firstArrInd + 1], rl, sep, self.type_) - OFFSET
-        self.aln_centres = quadrupleArrayByte(lineList[firstArrInd + 2], rl, sep, self.type_) - OFFSET
+        self.tot_cov =     quadrupleArrayByte(lineList['totCov'], rl, sep, self.type_) - OFFSET
+        self.snp_cov =     quadrupleArrayByte(lineList['snpCov'], rl, sep, self.type_) - OFFSET
+        self.aln_centres = quadrupleArrayByte(lineList['alnCtr'], rl, sep, self.type_) - OFFSET
         ##
         full_range = len(self.snp_cov[Lo][F])
         assert ( full_range == len(self.tot_cov[Hi][F]) )
