@@ -8,6 +8,7 @@ Created on Wed Jan 14 12:52:05 2015
 import subprocess
 from ReadCoverage import *
 import sqlite3
+import sys
 # import pdb
 ###############################################################################
 import argparse
@@ -23,7 +24,7 @@ help="output file (.csv); for stdout type '-' ")
 parser.add_argument("-l", "--rangel", type=int, default= 75,
 help="")
 
-parser.add_argument("-t", "--tag", type=str, default="HL10_ngm_nm4",
+parser.add_argument("-t", "--tag", type=str, default="HL7_ngm_nm4",
 help="") 
 "ABD192_bwa_nm3"
 
@@ -54,6 +55,13 @@ if purge:
 
 os.makedirs(destination_dir, exist_ok=True)
 ###############################################################################
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+###############################################################################
+
 
 CHROMOSOMES = ["Chr1"]
 table_base = args.tag + '__coverage'
@@ -61,16 +69,37 @@ table_base = args.tag + '__coverage'
 condition = ""# " WHERE pos = 16473265"
 
 with sqlite3.connect(args.inFile) as conn:
+    conn.row_factory =  sqlite3.Row
     curs = conn.cursor()
+    try:
+        curs.execute("SELECT Count(*) FROM " + table_base + condition)
+        nrows = curs.fetchone()[0]
+        print('total number of rows: %u' % ( nrows) )
+        curs.execute('PRAGMA table_info(%s)'% table_base)
+        while 1:
+            col_names = curs.fetchone()
+            if isinstance(col_names, type(None)):
+                break
+            else:
+                print('\t', col_names[1])
+    except:
+        curs.execute('SELECT name FROM sqlite_master WHERE type = "table"')
+        print('requested table has not been found!')
+        print('available tables:')
+        tables = curs.fetchall()
+        for tt in tables:
+            print('\t', tt['name'])
+        raise
+        sys.exit()
     for cc in CHROMOSOMES:
-        condition = "WHERE contig == " % cc + condition
+        condition = " WHERE contig == '%s'" % cc + condition
         curs.execute("SELECT Count(*) FROM " + table_base + condition)
         nrows = curs.fetchone()[0]
         print('contig: %s, number of rows: %u' % (cc, nrows) )
-        curs.execute("select * from %s" % chrtable + condition)
+        curs.execute("select * from %s" % table_base + condition)
         for rr in ResultIter(curs):
             # print(rr)
-            cs = CoverageSqlite(cc, rr, args)
+            cs = CoverageSqlite(rr, args)
             cs.plot()
             cs.print_plot( destination_dir , 'coverage')
             # plt.close("all")

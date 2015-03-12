@@ -8,7 +8,7 @@ Created on Tue Dec 16 15:51:09 2014
 import subprocess
 import sqlite3
 from ReadCoverage import *
-
+import sys
 # import pdb
 ###############################################################################
 import argparse
@@ -50,10 +50,16 @@ nrows = 0
 with sqlite3.connect(args.inFile) as conn:
     curs = conn.cursor()
     for cc in CHROMOSOMES:
-        curs.execute("SELECT Count(*) FROM " + table_base + condition)
-        nrows += curs.fetchone()[0]
-        print('chr %u, number of rows: %u' % (cc, nrows) )
-    
+        try:
+            curs.execute("SELECT Count(*) FROM " + table_base + condition)
+            nrows += curs.fetchone()[0]
+            print('chr %u, number of rows: %u' % (cc, nrows) )
+        except:
+            curs.execute('SELECT name FROM sqlite_master WHERE type = "table"')
+            print('requested table has not been found!')
+            print('available tables:')
+            print(curs.fetchone())
+            sys.exit()
     feature_array = np.zeros((nrows, 4*2*subrange))
     ii = 0
     

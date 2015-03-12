@@ -22,8 +22,8 @@ Re-evaluates the quality of called SNPs (provided in VCF format). Returns:
   and related scripts
 
 - following coverage data is returned within one block:
-  + accounting for perfectly matching reads with 100% identity ('`HI`') 
-    and loosely matching, between 90% and 100% identity ('`LO`')
+  + accounting for perfectly matching reads with 100% identity (`HI`) 
+    and loosely matching, between 90% and 100% identity (`LO`)
   + for forward and reverse strands
 
 - three blocks of coverage profiles are returned:
@@ -31,12 +31,8 @@ Re-evaluates the quality of called SNPs (provided in VCF format). Returns:
   + for reads covering only the locus proper (`snpCov` column)
   + location of centres of the reads covering the SNP locus (`alnCtr` column)
 
-- each chromosome is written in a separate table within the database:
-
-   `sample123__coverage_1` -- chr1,
-
-   `sample123__coverage_2` -- chr2 etc.
-
+- the coverage data is written in a `sampleX__coverage` table with a composite key of 
+`(contig, pos)`, where `contig` is of `TEXT` type and `pos` (position) of `INT` type.
 
 Test sample files:
 ------------
@@ -45,7 +41,7 @@ Test sample files for running the program are in the folder `testcase/`.
 
 Additional information:
 ------------
-A Python script (`src/plotCoverage.py`) is provided to produce the plots of the coverage.
+A Python script (`src/plot_coverage_sqlite.py`) is provided to produce the plots of the coverage.
 An earlier R script (`src/rscript.R`) is outdated and is not compatible with the current version.
 
 
