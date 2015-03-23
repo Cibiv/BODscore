@@ -6,6 +6,7 @@ include_directories (sambamio)
 
 add_executable(vshape 	BasisClass.cpp
                         Coverage.cpp
+                        SqliteDb.cpp
 						Ident_hist.cpp
 						ParseSNP.cpp
 						nvshape.cpp     #VShape.cpp
