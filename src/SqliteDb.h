@@ -31,25 +31,26 @@ private:
     bool db_flag = false;
     // unique_ptr<sqlite3pp::database> 
     sqlite3pp::database * db;
-    sqlite3pp::transaction * xct;
+//    sqlite3pp::transaction * xct;
     string table_name;
 
     void exec_sql_log(char const * sql);
 
 public:
-	SqliteDb(const char * dbpath){
-        db = new sqlite3pp::database(dbpath);
-        clog << "writing to database: " << dbpath << endl;
+	SqliteDb(const char * db_file){
+        db = new sqlite3pp::database(db_file);
+        clog << "writing to database: " << db_file << endl;
     }
 
-	SqliteDb(const char * dbpath, int verbose_)
+	SqliteDb(const char * db_file, int verbose_)
     : verbose(verbose_) {
-        db = new sqlite3pp::database(dbpath);
+        db = new sqlite3pp::database(db_file);
 //		buffer_size = 3000;
 //		buffer = new char[buffer_size];
 	}
 	
     ~SqliteDb(){
+        delete [] db; 
 	}
 
     int intermediate_commit();
