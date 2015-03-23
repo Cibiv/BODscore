@@ -8,7 +8,7 @@
 #include "ParseSNP.h"
 #include <sstream>
 #include <stdexcept>
-#include <unistd.h>     //for using the function usleep
+// #include <unistd.h>     //for the function usleep
 
 #define NA 18446744073709551615
 
@@ -119,6 +119,7 @@ string gen_key(int chr, int pos) {
     return chr_ref;
 }
 
+///////////////////////////////////////////////////////////////////////////////////
 void ParseSNP::init() {
     // Process Fasta File  ================================================
     ifstream fastaFile;
@@ -157,6 +158,7 @@ void ParseSNP::init() {
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////////
 void ParseSNP::parseVCF() {
     size_t COMMIT_EACH = 200;
     bool IMMEDIATE = false;
@@ -182,16 +184,18 @@ void ParseSNP::parseVCF() {
     string ref;
     
     FILE * plotFile = NULL;
-    sqlite3pp::transaction * xct;
+    // sqlite3pp::transaction * xct;
     bool transaction_flag = false;
     if (db_flag){
         clog << "writing to database: " <<  plot_file.c_str() << endl;
-        db  = new sqlite3pp::database( plot_file.c_str() ) ;
-        init_register_table();
-        place_register_record_begin();
+        db = new SqliteDb( plot_file.c_str() , verbose );
+        db->init_sql_table( sample_label );
+        db->init_register_table();
+        db->place_register_record_begin(  snpfile , read_filename);
+        db->init_contig_table();
+        if (!db) {  throw std::range_error("null pointer to the database");   
+        } else { clog<< "table has been successfully initialized\t" << db << endl;} ;
 
-        init_contig_table();
-        init_sql_table();
     } else {
         remove(plot_file.c_str());
         plotFile = fopen(plot_file.c_str(), "a");
@@ -274,15 +278,15 @@ void ParseSNP::parseVCF() {
 
                 if (db_flag) {
                     if (transaction_flag){
-                         clog << "commiting" << endl;
-                         try { xct->commit();}
-                         catch (exception& ex) { cerr << ex.what() << endl;  }
-                         xct = new sqlite3pp::transaction(*db, true, IMMEDIATE);
+                        clog << "commiting" << endl;
+                        if (!db) {  throw std::range_error("null pointer to the database");    };
+                        db->intermediate_commit();
                     } else {
-                        xct = new sqlite3pp::transaction(*db, true, IMMEDIATE);
+                        if (!db) {  throw std::range_error("null pointer to the database");    };
+                        db->new_transaction();
                         transaction_flag = true;
                     }
-                    place_contig_table_record(sample_label, chr_ref, current_chr);
+                    db->place_contig_table_record( chr_ref, current_chr);
                 }
                 n_snp = 0;
            }
@@ -319,17 +323,15 @@ void ParseSNP::parseVCF() {
             }
         }
         if (db_flag){
-            cov->print_cov_db(table_name.c_str(), *db);
+            db->print_cov_db( *cov );
         } else { cov->print_cov(chr_ref, plotFile); }
 
         cov->estimate( read_length );
 
         if ( !(n_snp % COMMIT_EACH) && n_snp >0 ){
             clog << " | commiting" << endl;
-            try { xct->commit();}
-            catch (exception& ex) { cerr << ex.what() << endl;  }
-            xct = new sqlite3pp::transaction(*db, true, IMMEDIATE);
-        }
+            db->intermediate_commit();
+       }
         // finally:       
         // vcfFile.getline(buffer, buffer_size);
     }
@@ -337,31 +339,14 @@ void ParseSNP::parseVCF() {
     vcfFile.close();
 
     if (db_flag){
-        place_register_record();
-        composite_index();
+        db->place_register_record( );
+        db->composite_index();
          // xct->rollback(); // sqlite
-        xct->commit();
+        db->commit();
     } else  fclose(plotFile);
 }
 ///////////////////////////////////////////////////////////////////////////////////
-void ParseSNP::read_register_table(){
-// one needs to check whether the table `register` exists whatsoever here:
 
-//    const char * qrycheck = "SELECT  count(*) FROM sqlite_master WHERE type='table' AND name='register';";
-//    sqlite3pp::query qry(*db, qrycheck);
-    try {
-        sqlite3pp::query qry(*db, "SELECT name, notes  FROM register");
-
-        for (int i = 0; i < qry.column_count(); ++i) {
-          cout << qry.column_name(i) << "\t";
-        }
-    } catch (int n) {
-        clog << "`register` table was not found" << endl;
-    }
-}
-void ParseSNP::parseSQLite() {
-    return; }
-///////////////////////////////////////////////////////////////////////////////////
 bool ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, const size_t &cc, const size_t & chr_bam){
     int leftPos = cov->start_pos;
     int rightPos =  cov->pos + range;
@@ -409,7 +394,7 @@ bool ParseSNP::process_snp(Coverage* cov, string & ref, Parser * mapped_file, co
              if (verbose>1) { 
                  clog << "\r";
                  for (size_t jj = range; jj< range+50; jj=jj+3){
-                    clog << setfill(' ') << setw(4) << (int) cov->snp_cov[0][0][jj];
+                    clog << setfill(' ') << setw(4) << (int) ( * cov->snp_cov)[0][0][jj];
 //                    usleep(2000);
                  }
              }
@@ -428,126 +413,4 @@ void ParseSNP::compute(){
 
 }
 
-void ParseSNP::init_sql_table( ){
-    table_name = sample_label + "__coverage";
 
-    char sql[256];
-    sprintf(sql, "CREATE TABLE %s ("  \
-                       "contig TEXT NOT NULL, " \
-                       "pos INT  NOT NULL , " \
-                       "totCounts INT, " \
-                       "refCounts INT, " \
-                       "snp_ratio FLOAT, " \
-                       "score FLOAT , " \
-                       "totCov BLOB, " \
-                       "snpCov BLOB, " \
-                       "alnCtr BLOB, "\
-                       "PRIMARY KEY (contig, pos) );", table_name.c_str() );
-    exec_sql_log(sql);
-}
-
-void ParseSNP::init_register_table( ){
-    const char * sql = "CREATE TABLE IF NOT EXISTS register ( "
-                 "name TEXT PRIMARY KEY, "
-            "vcf_file TEXT, "
-            "bam_file TEXT, "
-            "mapper TEXT, "
-            "nm INT, "
-            "mq INT, "
-            "nt_q INT, "
-            "wt BOOL, "
-            "notes TEXT ); ";
-   exec_sql_log(sql);
-}
-
-void ParseSNP::place_register_record_begin(){
-    std::string note =  "coverage analysis started : " + snpfile;
-    sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, vcf_file,bam_file, notes) VALUES (:name, :vcf_file, :bam_file, :notes) ");
-    cmd.bind(":name", sample_label.c_str());
-    cmd.bind(":vcf_file", snpfile.c_str());
-    cmd.bind(":bam_file", read_filename.c_str());
-    cmd.bind(":notes", note.c_str() );
-
-// sqlite3pp::command cmd( *db, "INSERT OR REPLACE INTO register (name, vcf_file, notes) VALUES (:name, :vcf_file, :notes) ");
-//    cmd.bind(":vcf_file", snpfile.c_str() );
-    try {
-        cmd.execute();
-    } catch (exception& ex) {
-        cerr << ex.what() << endl;
-    }
-
-}
-void ParseSNP::place_register_record(){
-    std::string note =  "coverage_done : " + snpfile;
-  {
-     sqlite3pp::command cmd( *db, "INSERT OR IGNORE INTO register (name, notes) VALUES (:name, :notes) ");
-    cmd.bind(":name", sample_label.c_str());
-    // cmd.bind(":vcf_file", snpfile.c_str() );
-    cmd.bind(":notes", note.c_str() );
-
-    try {
-        cmd.execute();
-    } catch (exception& ex) {
-        cerr << ex.what() << endl;
-    }
-  }
-  {
-    sqlite3pp::command cmd( *db, "UPDATE register SET notes = (:notes) WHERE name = (:name) " );
-    cmd.bind(":name", sample_label.c_str());
-    cmd.bind(":notes", note.c_str() );
-
-    try {
-        cmd.execute();
-    } catch (exception& ex) {
-        cerr << ex.what() << endl;
-    }
-  }
-}
-
-void ParseSNP::init_contig_table(){
-
-    char sql[256];
-    sprintf(sql, "CREATE TABLE %s__contigs ("  \
-                      "chr_name TEXT PRIMARY KEY     NOT NULL , " \
-                       "data_type TEXT, " \
-                       "chr_id INT, " \
-                       "max_pos INT, " \
-                       "records INT);", sample_label.c_str() );
-    exec_sql_log(sql);
-}
-
-void ParseSNP::exec_sql_log(char const * sql){
-    try {
-        int exitcode = db->execute(sql);
-        if (verbose){   clog << "[sqlite3:] " << sql << " [returned:]  " << exitcode << endl;}
-     } catch (exception& ex) {
-         cerr << ex.what() << endl;
-    }
-}
-
-void ParseSNP::place_contig_table_record( string & sample_label, size_t & chr_ref, string & chr_name ){
-
-    char sql[256];
-    sprintf(sql, "INSERT OR REPLACE INTO %s__contigs " \
-        "(chr_name, data_type, chr_id) " \
-        //"(chr_name, data_type, chr_id, records ) " 
-        "VALUES " \
-        "(:chr_name, :data_type, :chr_id);", sample_label.c_str() );
- 
-    sqlite3pp::command cmd( *db, sql);
-    cmd.bind(":chr_name", chr_name.c_str() );
-    cmd.bind(":data_type", "coverage");
-    cmd.bind(":chr_id", (int) chr_ref + 1 );
-//    cmd.bind(":records", n_snp );
-    try {
-        cmd.execute();
-    } catch (exception& ex) {
-        cerr << ex.what() << endl;
-    }
-}
-
-void ParseSNP::composite_index(){
-    char sql[256];
-    sprintf( sql, "CREATE UNIQUE INDEX idx1 ON %s (contig, pos);", table_name.c_str() );
-    exec_sql_log(sql);
-}

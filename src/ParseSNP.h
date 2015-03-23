@@ -16,7 +16,7 @@
 #include <assert.h>     /* assert */
 #include "Global.h"
 #include <sqlite3pp.h>
-//#include <sqlite3ppext.h>
+#include "SqliteDb.h"
 #include <memory>
 
 size_t const range =200;
@@ -35,6 +35,7 @@ void deleteInVector(vector<T*>* deleteme) {
 // ================================================================================
 class ParseSNP: public BasisClass{
 private:
+    bool IMMEDIATE = false;
     int verbose = 0;
     string snpfile;
     string read_filename;
@@ -45,16 +46,14 @@ private:
     string sample_label;
     bool db_flag = false;
     // unique_ptr<sqlite3pp::database> 
-    sqlite3pp::database * db;
+    SqliteDb * db;
     int read_length;
     int range;
     int num_test = 0; // for testing purposes: maximal number of snps per contig to process.
     int n_snp = 0;
 
-    string table_name;
-
-    vector<vector<Coverage*> > genome;
-    map<string,Coverage*> covs;
+//    vector<vector<Coverage*> > genome;
+//    map<string,Coverage*> covs;
     map<string,int>chromosome_vector;
 
     vector<string> exclude_contigs;//    vector<vector<int> >  snps;
@@ -65,17 +64,6 @@ private:
     void print();
     void parseVCF();
     void init();
-    void exec_sql_log(char const * sql);
-    void init_sql_table();
-
-    void init_contig_table();
-    void init_register_table();
-    void place_register_record();
-    void place_register_record_begin();
-    void read_register_table();
-    void place_contig_table_record( string & sample_label, size_t & id, string & chr_name );
-    void parseSQLite();
-    void composite_index();
 
 public:
 	ParseSNP(){

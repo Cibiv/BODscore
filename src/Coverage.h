@@ -5,15 +5,18 @@
 #include<Alignment.h>
 #include <stdexcept>
 #include <sqlite3pp.h>
+#include "QdrArray.h"
 // #include <stdexcept>
 
 using namespace std;
 
 int const step=5;
+/*
 size_t const LO = 0;
 size_t const HI = 1;
 size_t const FW = 0;
 size_t const RV = 1;
+*/
 
 class Coverage{
 private:
@@ -21,22 +24,10 @@ private:
     int buf_len;
 
     void allocate_arrays(){
-        tot_cov[0][0] = new int[range * 2];
-        tot_cov[0][1] = new int[range * 2];
-        tot_cov[1][0] = new int[range * 2];
-        tot_cov[1][1] = new int[range * 2];
-        
-        snp_cov[0][0] = new int[range * 2];
-        snp_cov[0][1] = new int[range * 2];
-        snp_cov[1][0] = new int[range * 2];
-        snp_cov[1][1] = new int[range * 2];
- 
-        aln_centres[HI][FW] = new int[range * 2];
-        aln_centres[HI][RV] = new int[range * 2];
-        aln_centres[LO][FW] = new int[range * 2];
-        aln_centres[LO][RV] = new int[range * 2];
-   
-        clear_arrays(); // memset all to zeros;
+        tot_cov     = new QdrArray( range * 2 );
+        snp_cov     = new QdrArray( range * 2 );
+        aln_centres = new QdrArray( range * 2 );
+        // clog << "snp_cov[0][0][1] : " << (*snp_cov)[0][0][1] << endl;
     }
     static const int ZERO;
 
@@ -51,36 +42,30 @@ private:
     
     void (Coverage::*pb)(FILE *file, const int * var) = NULL;
 
-//    template<typename TT>
-//    void (Coverage::*pbdb)(TT *outstr, const int * var) = NULL;
-     void (Coverage::*pbdb_int)(int *outstr, const int * var) = NULL;
-//     void (Coverage::*pbdb)() = NULL;
+    void (Coverage::*pbdb_int)(int *outstr, const int * var) = NULL;
 
     void print_block(FILE *file, const int * var );
     void print_char_block(FILE *file, const int * var );
-    void print_subarrays(FILE *file, int * const  p[2][2] );
-
-    template<typename TT>
-    void sprint_char_block(TT outstr[], const int * var);
-    template<typename TT>
-    void sprint_subarrays( TT * buf, int * const  p[2][2] );
 
 public:
     std::string contig;
     int pos ;
     int start_pos ; 
 //    int end_pos;
-    int * tot_cov[2][2];
-    int * snp_cov[2][2];
-    int * aln_centres[2][2];
+    QdrArray * tot_cov;
+    QdrArray * snp_cov;
+    QdrArray * aln_centres;
  
     int chr;
 	float score;
     int const range;
 
+    int altCounts = 0;
+    int totCounts = 0;
+    float snp_ratio = 0;
+
     Coverage(): range(1), pos(0), start_pos(0){ 
         allocate_arrays();
-        clog << "allocated for " << range*2<< " ints" << endl;
     };
     
     Coverage(int &x, int &r): range(r), pos(x),  start_pos(  ( x-r > 0) ? (x-r) : 0 ) {
@@ -90,46 +75,32 @@ public:
     Coverage(const Coverage &obj): range(obj.range) {
         pos = obj.pos ;
         start_pos = obj.start_pos;
-        tot_cov[0][0] = obj.tot_cov[0][0];
-        snp_cov[0][0] = obj.snp_cov[0][0];
-        aln_centres[0][0] = obj.aln_centres[0][0];
+//        tot_cov[0][0] = obj.tot_cov[0][0];
+//        snp_cov[0][0] = obj.snp_cov[0][0];
+//        aln_centres[0][0] = obj.aln_centres[0][0];
         clear_arrays(); // memset all to zeros
     }
 
      Coverage(const int &r):  range(r) {
         allocate_arrays();
+        // clog << "coverage arrays allocated for " << range*2<< " ints" << endl;
      }
 
-    void delete_subarrays(int *p[2][2] ){
-      delete[] p[0][0];
-      delete[] p[0][1];
-      delete[] p[1][0];
-      delete[] p[1][1];
-    }
-
     ~Coverage(){ 
-      delete_subarrays( snp_cov );
-      delete_subarrays( tot_cov );
-      delete_subarrays( aln_centres );
-    }
-
-    void memset_subarrays(int *p[2][2]){
-        memset( p[0][0], 0, range * 2 * sizeof(int));
-        memset( p[0][1], 0, range * 2 * sizeof(int));
-        memset( p[1][0], 0, range * 2 * sizeof(int));
-        memset( p[1][1], 0, range * 2 * sizeof(int));
+      delete [] snp_cov;
+      delete [] tot_cov;
+      delete [] aln_centres;
     }
 
     void clear_arrays(){ // memset all to zeros
-        memset_subarrays( snp_cov );
-        memset_subarrays( tot_cov );
-        memset_subarrays( aln_centres );
+        snp_cov->memset_subarrays( );
+        tot_cov->memset_subarrays( );
+        aln_centres->memset_subarrays( );
     }
 
     float estimate( int & read_length );
     void compute_cov( Alignment * aln );
     void print_cov( const int & cc, FILE *file );
-    void print_cov_db( const char * table_name, sqlite3pp::database & db );
     bool within( const int & x );
 
     void reset(std::string current_chr, int x) //: contig(current_chr), pos(x)
@@ -137,6 +108,7 @@ public:
         contig = current_chr;
         pos = x;
         start_pos = pos > range ? pos - range : 0;
+        // clog << "snp_cov[0][0][1] : " << (*snp_cov)[0][0][1] << endl;
         clear_arrays();
     }
     void reset(int cc, int x)//:  chr(cc), pos(x)
@@ -154,6 +126,7 @@ public:
         start_pos = pos > range ? pos - range : 0;
         clear_arrays();
     }
+
 };
 
 #endif // Coverage_H_

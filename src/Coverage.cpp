@@ -2,8 +2,6 @@
 by Dmytro S Lituiev, 8 Dec 2014;
 based on Fritz Sedlazeck's;
 */
-#define BLOB_TYPE unsigned short int
-
 #include "Coverage.h"
 const int Coverage::ZERO = 0;
 
@@ -23,8 +21,8 @@ float Coverage::estimate(int & read_length) {
         int cov_hi[2*range];
         int cov_90[2*range];
         for (size_t ii=0; ii< 2*range; ii++){
-            cov_hi[ii] = tot_cov[HI][RV][ii] + tot_cov[HI][FW][ii];
-            cov_90[ii] = cov_hi[ii] + tot_cov[LO][RV][ii] + tot_cov[LO][FW][ii];
+            cov_hi[ii] = (*tot_cov)[HI][RV][ii] + (*tot_cov)[HI][FW][ii];
+            cov_90[ii] = cov_hi[ii] + (*tot_cov)[LO][RV][ii] + (*tot_cov)[LO][FW][ii];
             }
 
         int max_right = 0;
@@ -94,18 +92,18 @@ void Coverage::compute_cov(Alignment * aln) {
 
     if (aln->getIdentity() == 1) {
         for (size_t i = max(ZERO, -al_pos); i < end_point ; i++) {
-            tot_cov[hi_lo][fw_rv][jj]++;
+            (*tot_cov)[hi_lo][fw_rv][jj]++;
             if (within){ 
-                snp_cov[snp_hi_lo][fw_rv][jj]++;
+                (*snp_cov)[snp_hi_lo][fw_rv][jj]++;
                 }
             jj++;
             if (i > 2*range){ break; }
         }
     } else {
         for (size_t i = max(ZERO, -al_pos); i < end_point ; i++) {
-             tot_cov[hi_lo][fw_rv][jj]++;
+             (*tot_cov)[hi_lo][fw_rv][jj]++;
              if ( within ){ 
-                 snp_cov[snp_hi_lo][fw_rv][jj]++;
+                 (*snp_cov)[snp_hi_lo][fw_rv][jj]++;
              }
              if (aln->getSequence().second[i] != '-') {
                  jj++;
@@ -118,8 +116,12 @@ void Coverage::compute_cov(Alignment * aln) {
     // ==== IF snp is within the alignment
     if ( within ){
         int centre_al =  range - pos_snp_in_aln + aln->getSequence().first.size() / 2  ;
-        aln_centres[snp_hi_lo][fw_rv][centre_al]++; 
+        (*aln_centres)[snp_hi_lo][fw_rv][centre_al]++; 
     }
+    // summary 
+    altCounts = (*tot_cov)[LO][FW][range] + (*tot_cov)[LO][RV][range];
+    totCounts = altCounts + (*tot_cov)[HI][FW][range] + (*tot_cov)[HI][RV][range];
+    snp_ratio = (float) altCounts / (float) totCounts;
 
 };
 
@@ -130,159 +132,13 @@ void Coverage::print_cov(const int & cc, FILE *file){
     fprintf(file, "%u\t", pos + 1 );
     fprintf(file, "%f\t", score);
     
-    print_subarrays( file, tot_cov );
-    
-    print_subarrays( file, aln_centres);
-    
-    print_subarrays( file, snp_cov );
+    tot_cov->print_subarrays( file );
+    aln_centres->print_subarrays( file );
+    snp_cov->print_subarrays( file );
     
     fprintf(file, "%c", '\n');
 }
-/*
-char * uint16_to_char(unsigned short int * const val){
-char bytes[2];
-    bytes[0] = (val) & 0xFF;  // low byte
-    bytes[1] = (val >> 8) & 0xFF;  // high byte
-    return bytes;
-}
 
-void uint16_to_char(char * out_buffer, unsigned short int * const val){
-    out_buffer[0] = (val) & 0xFF;  // low byte
-    out_buffer[1] = (val >> 8) & 0xFF;  // high byte
-    return;
-}
-
-void array_uint16_to_char(char * out_buffer, unsigned short int * arr, size_t len){ 
-    for (size_t ii = 0; ii<len; ii++){
-        uint16_to_char( out_buffer + 2*ii, arr[ii]);
-    }
-    return;
-}
-*/
-void Coverage::print_cov_db(const char * table_name, sqlite3pp::database & db){
-                        // clog << "printing ..." << endl;
-//                    cout << "REACHED 1!" << endl;
-
-    size_t nbytes = sizeof(BLOB_TYPE);
-                
-    buf_len = range*2 + 1 ; // class int 
-    size_t buf_tot_len = 4 * buf_len;
-
-    BLOB_TYPE aln_ctr_str[buf_tot_len] ;
-    sprint_subarrays(aln_ctr_str, aln_centres);
-
-    BLOB_TYPE tot_cov_str[buf_tot_len] ;
-    sprint_subarrays(tot_cov_str, tot_cov);
-
-    BLOB_TYPE snp_cov_str[buf_tot_len] ;
-    sprint_subarrays(snp_cov_str, snp_cov);
-
-    int altCounts = tot_cov[LO][FW][range] + tot_cov[LO][RV][range];
-    int totCounts = altCounts + tot_cov[HI][FW][range] + tot_cov[HI][RV][range];
-    float snp_ratio = (float) altCounts / (float) totCounts;
-
-/*  clog << "blob length: "<< tot_cov_str.length() << endl;
-    if (tot_cov_str.length() < buf_tot_len){
-        cerr << "short string!!" << endl << tot_cov_str.c_str() << endl;
-    }
-*/
-    for (size_t i = 1; i<=4; i++){
-        if (tot_cov_str[i*buf_len - 1] != 0){
-            cerr << "corrupted byte ending # " << i ;
-            cerr << " value " << (int) tot_cov_str[i*buf_len] << endl;
-        }
-    }
-
-
-    char sql[1024];
-    sprintf (sql, "INSERT OR REPLACE INTO %s "  \
-         "(contig, pos, totCounts, refCounts, snp_ratio, score, totCov, snpCov, alnCtr) " \
-         "VALUES (:contig, :pos, :totCounts, :refCounts, :snp_ratio, :score, :tot_cov, :snp_cov, :aln_ctr) ", \
-          table_name );
-
-    sqlite3pp::command cmd( db, sql);
-    cmd.bind(":contig", contig.c_str() );
-    cmd.bind(":pos", pos + 1 );
-    cmd.bind(":totCounts", totCounts);
-    cmd.bind(":refCounts", totCounts - altCounts);
-    cmd.bind(":snp_ratio", snp_ratio);
-    cmd.bind(":score", score);
-    cmd.bind(":tot_cov", (void const*) tot_cov_str, buf_tot_len * nbytes );
-    cmd.bind(":snp_cov", (void const*) snp_cov_str, buf_tot_len * nbytes);
-    cmd.bind(":aln_ctr", (void const*) aln_ctr_str, buf_tot_len * nbytes);
-    
-    try {
-        cmd.execute();
-    } catch (exception& ex) {
-        cerr << ex.what() << endl;
-    }
-//                    cout << "REACHED 2!" << endl;
-//      print_subarrays( file, tot_cov );
-    
-//      print_subarrays( file, aln_centres);
-    
-//      print_subarrays( file, snp_cov );
-    
-//      fprintf(file, "%c", '\n');
-}
-/*
-std::string Coverage::col_names(const char * base){
-    char buf [(strlen(base) + 8)*4 ] ;
-    int n = 0;
-    n = n+ sprintf(buf+n,  "%s_hi_fw, ", base);
-    n = n+ sprintf(buf+n,  "%s_hi_rv, ", base);
-    n = n+ sprintf(buf+n,  "%s_lo_fw, ", base);
-    n = n+ sprintf(buf+n,  "%s_lo_rv ", base);
-    std::string out = buf;
-}
-*/
-template<typename TT>
-void Coverage::sprint_subarrays( TT * buf, int * const  p[2][2] ){
-//        pb = &Coverage::print_block;
-        // pbdb_int = &Coverage::sprint_char_block;
-        sprint_char_block(buf            , p[HI][FW]);
-        sprint_char_block(buf + buf_len  , p[HI][RV]);
-        sprint_char_block(buf + buf_len*2, p[LO][FW]);
-        sprint_char_block(buf + buf_len*3, p[LO][RV]);
-        
-        // std::string my_string( buf, 4 * buf_len );
-        // return my_string;
-
-     }
-
-void Coverage::print_subarrays(FILE *file, int * const  p[2][2] ){
-        
-//        pb = &Coverage::print_char_block;
-        pb = &Coverage::print_block;
-        (this->*Coverage::pb)(file, p[HI][FW]);
-        (this->*Coverage::pb)(file, p[HI][RV]);
-        (this->*Coverage::pb)(file, p[LO][FW]);
-        (this->*Coverage::pb)(file, p[LO][RV]);
-     }
-
-template<typename TT>
-void Coverage::sprint_char_block(  TT outstr[], const int * var ){
-    for (int j = 0; j < 2 * range; j++) {
-        outstr[j] = (TT) var[j] + 1; // sprintf(outstr + 1 + j, "%C", var[j]+33);
-    }
-    outstr[ 2*range ] = 0;
-    return;
-}
-/*
-void Coverage::print_char_block(FILE *file, const int * var ){
-//    fprintf(file, "\t");
-    char buf[range*2 + 2 ];
-    sprint_char_block( buf, var);
-//    printf ( "%.*s", range*2,  buf );
-    fprintf(file, "%.*s", range*2,  buf );
-}
-*/
-void Coverage::print_block(FILE *file, const int * var ){
-    fprintf(file, "|\t");
-    for (size_t j = 0; j < (size_t) range * 2; j++) {
-        fprintf(file, "%i\t", var[j]);
-    }
-}
 bool Coverage::within(const int & x){
     return ( (pos - x) < range && (x - pos) < range ) ? true : false ;
 }
