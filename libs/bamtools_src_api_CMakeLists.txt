@@ -12,6 +12,7 @@ include_directories( ${BamTools_SOURCE_DIR}/src )
 add_definitions( -DBAMTOOLS_API_LIBRARY ) # (for proper exporting of library symbols)
 add_definitions( -fPIC ) # (attempt to force PIC compiling on CentOS, not being set on shared libs by CMake)
 
+set (CMAKE_SHARED_LINKER_FLAGS "-lz" )
 # fetch all internal source files
 add_subdirectory( internal )
 

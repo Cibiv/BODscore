@@ -21,4 +21,5 @@ src/pyscripts/__pycache__/*
 libs/sqlite-amalgamation-3080802.zip
 sqlite-amalgamation-3080802.zip
 log*.txt
-
+.DS_Store
+**/.DS_Store
