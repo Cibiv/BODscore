@@ -37,7 +37,8 @@ Re-evaluates the quality of called SNPs (provided in VCF format). Returns:
 Test sample files:
 ------------
 Test sample files for running the program are in the folder `testcase/`.
-See bash script `testcase/testvshape.sh` for example of `vshape` invocation.
+See bash script `testcase/db_vshape_test.sh` and 
+`testcase/tab_vshape_test.sh`  for example of `vshape` invocation.
 For conversion `sqlite3 -> csv` see `testcase/dbtocsv.sh`
 
 Additional information:
