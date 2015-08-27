@@ -1,5 +1,6 @@
 *.db
 **/*.db
+testcase/testtable.tab
 data/**/*
 bin/**/*
 plots/**/*

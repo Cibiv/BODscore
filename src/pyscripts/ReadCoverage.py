@@ -4,7 +4,8 @@ Created on Tue Dec 16 15:35:34 2014
 
 @author: dima
 """
-import os
+from __future__ import print_function
+import os, sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -213,8 +214,10 @@ class PlotCoverage:
         # plt.legend(bbox_to_anchor=(xmin, ymax - 0.1*(ymax -ymin)), bbox_transform=plt.gcf().transFigure)
         
     def print_plot(self, out_dir, name):
-        plt.savefig(os.path.join(out_dir, name + '_%s_%u.eps'% (self.chromosome, self.pos) ) )
+        outpath = os.path.join(out_dir, name + '_%s_%u.eps'% (self.chromosome, self.pos) ) 
+        plt.savefig( outpath )
         plt.close(self.fig) # 
+        print("see:\t", outpath , file = sys.stderr)
         
     def show_plot(self):
         plt.show(self.fig)
@@ -290,7 +293,7 @@ class CoverageSqlite( PlotCoverage ):
     
     def __init__( self, line, args ):
         global rl, sep, out_dir
-        rl = args.rangel
+        rl = args.range
         sep = args.csvseparator
         self.type_ = args.type
         self.chromosome = line['contig']
