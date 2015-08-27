@@ -4,7 +4,6 @@ cp libs/bamtools_CMakeLists.txt  libs/bamtools/CMakeLists.txt
 cp libs/bamtools_src_CMakeLists.txt libs/bamtools/src/CMakeLists.txt
 cp libs/bamtools_src_api_CMakeLists.txt  libs/bamtools/src/api/CMakeLists.txt
 cp libs/sqlite3pp_src_CMakeLists.txt  libs/sqlite3pp/src/CMakeLists.txt
-
 FLAG_SQLITE_INCLUDED=1;
 
 if [ ! $FLAG_SQLITE_INCLUDED  ]
@@ -19,7 +18,6 @@ fi
 
 mkdir build
 cd build && rm -rf ./* 
-
 cmake .. || exit 1;
 
 make || exit 1;

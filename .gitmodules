@@ -1,9 +1,7 @@
-[submodule "libs/--force"]
-	path = libs/--force
-	url = https://github.com/iwongu/sqlite3pp
 [submodule "libs/sqlite3pp"]
 	path = libs/sqlite3pp
 	url = https://github.com/iwongu/sqlite3pp
 [submodule "libs/bamtools"]
 	path = libs/bamtools
 	url = https://github.com/pezmaster31/bamtools
+
