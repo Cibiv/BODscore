@@ -1,6 +1,0 @@
-vshape="../bin/vshape-1.0.0/vshape"
-vcf="test.sort.vcf"
-bam="short.bam"
-REFERENCE="Ref.fa"
-DATABASE="test.db"
-$vshape -v -b 5 -x mitochondria -x chloroplast -l 50 -r $REFERENCE  -d  $DATABASE -s $vcf -q $bam -t "testsample"

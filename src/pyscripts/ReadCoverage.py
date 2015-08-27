@@ -300,7 +300,7 @@ class CoverageSqlite( PlotCoverage ):
         self.pos = line['pos']
         self.totCounts = line['totCounts']
         self.snp_ratio = line['snp_ratio']
-        self.score = line['score']
+        self.score = line['score'] if (type(line['score']) == float) else 0.0
         
         self.parseArrays(line)
         self.x = np.arange(- rl, rl ).astype(int)
