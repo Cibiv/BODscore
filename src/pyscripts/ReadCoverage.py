@@ -124,7 +124,7 @@ class PlotCoverage:
         
         plt.ylim([-yl, yl]) 
         
-        plt.legend(handles = li, loc='upper right')
+        plt.legend( li, loc='upper right')
         
     def plot_centres(self):
         yl = max(np.abs(self.aln_centres.ravel() ) ) + 1
