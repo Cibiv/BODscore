@@ -64,7 +64,7 @@ private:
     void print();
     void parseVCF();
     void init();
-
+    std::istream& safeGetline(std::istream& is, char * t, const size_t & buf_len);
 public:
 	ParseSNP(){
 		read_length=0;

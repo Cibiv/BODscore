@@ -131,7 +131,8 @@ void ParseSNP::init() {
 
         clog << "reading the reference FASTA file : `" << reffile.c_str() << "`"<< endl;
 
-    fastaFile.getline(buffer, buffer_size);
+    safeGetline(fastaFile ,  buffer, buffer_size);
+    // fastaFile.getline(buffer, buffer_size);
     int chr_ref = 0;
         while (!fastaFile.eof()) {
 
@@ -139,7 +140,7 @@ void ParseSNP::init() {
             string chr;
             chr.clear();
             for (size_t i = 1;
-                    i < buffer_size && buffer[i] != '\0' && buffer[i] != '\n'
+                    i < buffer_size && buffer[i] != '\0' && ( buffer[i] != '\r' )  && buffer[i] != '\n'
                             && buffer[i] != ' '; i++) {
                 chr += buffer[i];
             }
@@ -223,7 +224,7 @@ void ParseSNP::parseVCF() {
     size_t temp_chr_ref = NA;
     size_t chr_ref = NA;
     int pos = 0;
-//    int n_snp = 0;  // <- global
+    //    int n_snp = 0;  // <- global
     // ref = fasta->getChr(chr_ref);
 
     Coverage * cov;
@@ -231,9 +232,17 @@ void ParseSNP::parseVCF() {
 
     while (!vcfFile.eof()) {
 
-        vcfFile.getline(buffer, buffer_size);
-
+//        vcfFile.getline(buffer, buffer_size);
+        safeGetline(vcfFile ,  buffer, buffer_size);
         if (buffer[0] == '#'){
+            if (verbose){ clog << "skipping comment" << endl ;
+                std::string s( buffer );
+                if (s.find_last_of("\r") > 0){
+                    clog << "this file contains Windows / MacOS specific end-of-line character \'\\r\'\n" <<  \
+                        "@ position:\t" <<  s.find_last_of("\r") << "\n" << \
+                        "consider running `dos2unix` or similar!" << endl;
+                }
+            }
             continue;
         }
         int field_count = 0;
@@ -255,7 +264,7 @@ void ParseSNP::parseVCF() {
             }
         }
         // process chromosome:
-        // clog << current_chr.c_str() << "  "; 
+        if (verbose) { clog << "reading\t" << current_chr.c_str() << "\t" << pos << endl;}; 
         if ( chromosome_vector.count(current_chr.c_str()) > 0){ //found
 
             temp_chr_ref = chromosome_vector[current_chr.c_str()];
@@ -293,10 +302,10 @@ void ParseSNP::parseVCF() {
              
         } else if (broken_chromosome.compare(current_chr)!=0){
             broken_chromosome = current_chr;
-            cerr << endl << "Contig not found: \t" << broken_chromosome << endl;
+            cerr << endl << "Contig not found: \"\t" << broken_chromosome << "\t\"" << endl;
             continue;
         } else {
-            if (verbose){ cerr << "\r skipping: " << current_chr << " : " << pos ; }
+            if (verbose){ cerr << "\rskipping:\t" << current_chr << "\t" << pos << endl; }
             continue;
         }
 
@@ -413,4 +422,39 @@ void ParseSNP::compute(){
 
 }
 
+//std::istream& ParseSNP::safeGetline(std::istream& is, std::string& t)
+std::istream& ParseSNP::safeGetline(std::istream& is, char * t, const size_t & buf_len)
+{
+    //t.clear();
 
+    // The characters in the stream are read one-by-one using a std::streambuf.
+    // That is faster than reading them one-by-one using the std::istream.
+    // Code that uses streambuf this way must be guarded by a sentry object.
+    // The sentry object performs various tasks,
+    // such as thread synchronization and updating the stream state.
+
+    std::istream::sentry se(is, true);
+    std::streambuf* sb = is.rdbuf();
+
+    for(size_t i=0; i < buf_len ; i ++ ) {
+        int c = sb->sbumpc();
+        switch (c) {
+        case '\n':
+            t[i] = '\0';
+            return is;
+        case '\r':
+            if(sb->sgetc() == '\n')
+                sb->sbumpc();
+            t[i] = '\0';
+            return is;
+        case EOF:
+            // Also handle the case when the last line has no line ending
+            t[i] = '\0';
+            if(i==0) // t.empty())
+                is.setstate(std::ios::eofbit);
+            return is;
+        default:
+            t[i] = (char)c;
+        }
+    }
+}
