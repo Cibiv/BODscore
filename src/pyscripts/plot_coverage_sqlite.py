@@ -66,13 +66,13 @@ def dict_factory(cursor, row):
 CHROMOSOMES = ["Chr1"]
 table_base = args.tag + '__coverage'
 
-condition = ""# " WHERE pos = 16473265"
+condition0 = ""# " WHERE pos = 16473265"
 
 with sqlite3.connect(args.inFile) as conn:
     conn.row_factory =  sqlite3.Row
     curs = conn.cursor()
     try:
-        query = "SELECT Count(*) FROM " + table_base + condition
+        query = "SELECT Count(*) FROM " + table_base + condition0
         curs.execute( query )
         nrows = curs.fetchone()[0]
         print( "query: " , query )
@@ -103,8 +103,13 @@ with sqlite3.connect(args.inFile) as conn:
 
     for co in chromosomes:
         cc = co["contig"]
-        condition = " WHERE contig == '%s'" % cc + condition
-        curs.execute("SELECT Count(*) FROM " + table_base + condition)
+        if len(cc) == 0:
+            RuntimeWarning('empty contig. Skipping...')
+            continue
+        condition = " WHERE contig == '%s'" % cc + condition0
+        query = "SELECT Count(*) FROM " + table_base + condition
+        print( query, file = sys.stderr )
+        curs.execute( query )
         nrows = curs.fetchone()[0]
         # print( co.keys() )
         print('contig: %s, number of rows: %u' % (cc, co["count"] ) )

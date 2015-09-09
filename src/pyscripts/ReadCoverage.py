@@ -10,6 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import struct
+from distutils.version import StrictVersion
+uptodate_plt = StrictVersion(plt.matplotlib.__version__) >= StrictVersion( '1.4.3' )
+
 ###############################################################################
 def ResultIter(cursor, arraysize=5000):
     'An iterator that uses fetchmany to keep memory usage down'
@@ -123,8 +126,10 @@ class PlotCoverage:
         plt.plot(self.x, -self.__dict__[field][Lo][R], 'r.-')
         
         plt.ylim([-yl, yl]) 
-        
-        plt.legend( li, loc='upper right')
+        if uptodate_plt:
+            plt.legend( handles = li, loc='upper right')
+        else:
+            plt.legend( loc='upper right')
         
     def plot_centres(self):
         yl = max(np.abs(self.aln_centres.ravel() ) ) + 1
